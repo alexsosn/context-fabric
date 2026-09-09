@@ -279,7 +279,7 @@ class Fabric:
             CF.features['fff'].metaData
 
         This works for all features `fff` that have been found,
-        whether they are loaded or not.
+        whether the feature is loaded or not.
 
         If a feature is loaded, you can also use
 
