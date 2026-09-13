@@ -22,10 +22,51 @@ logger = logging.getLogger(__name__)
 
 COMPOSITION_MANIFEST = "composition.json"
 COMPOSITION_MANIFEST_VERSION = 1
+SourceFingerprint = tuple[int, int]
 
 
 class Fabric(BaseFabric):
     """Fabric with safe CFM acceleration for ordered composed corpora."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # Base Fabric calls self._loadFeature() while building its index, so the
+        # tracking containers must exist before delegating to its constructor.
+        self._loaded_source_fingerprints: dict[str, SourceFingerprint] = {}
+        self._unstable_loaded_sources: set[str] = set()
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def _source_fingerprint(path: Path) -> SourceFingerprint | None:
+        if path.suffix != ".tf":
+            return None
+        try:
+            stat = path.stat()
+        except OSError:
+            return None
+        return (stat.st_size, stat.st_mtime_ns)
+
+    def _loadFeature(self, fName: str, optional: bool = False) -> None:
+        """Load one feature and remember the exact physical source snapshot read."""
+        feature = self.features.get(fName)
+        path = Path(feature.path) if feature is not None else None
+        before = self._source_fingerprint(path) if path is not None else None
+
+        super()._loadFeature(fName, optional=optional)
+
+        feature = self.features.get(fName)
+        if feature is None or feature.dataError:
+            self._loaded_source_fingerprints.pop(fName, None)
+            return
+        path = Path(feature.path)
+        if path.suffix != ".tf":
+            return
+        after = self._source_fingerprint(path)
+        if before is None or after is None or before != after:
+            self._loaded_source_fingerprints.pop(fName, None)
+            self._unstable_loaded_sources.add(fName)
+            return
+        self._loaded_source_fingerprints[fName] = after
+        self._unstable_loaded_sources.discard(fName)
 
     def _composition_topology(self) -> dict[str, Any]:
         return {
@@ -107,28 +148,34 @@ class Fabric(BaseFabric):
         ):
             return None
 
-        # A composed cache must represent every effective physical data feature.
-        # Before loadAll() finishes, unknown feature kinds are conservatively
-        # treated as data and therefore keep compilation disabled. A source that
-        # disappears or becomes newer than its in-memory Data object also keeps
-        # compilation disabled.
-        for feature in self.features.values():
+        # Every effective physical data source, plus text configuration that
+        # contributes runtime metadata, must still match the snapshot actually
+        # read by _loadFeature(). This also rejects deletion after loading.
+        for name, feature in self.features.items():
             path = Path(feature.path)
             if path.suffix != ".tf":
                 continue
-            if not path.exists():
+            current_fingerprint = self._source_fingerprint(path)
+            if current_fingerprint is None:
                 logger.debug("Skipping composed CFM: loaded source disappeared: %s", path)
                 return None
+            if name in self._unstable_loaded_sources:
+                logger.debug("Skipping composed CFM: source changed while loading: %s", path)
+                return None
+
+            loaded_fingerprint = self._loaded_source_fingerprints.get(name)
             if feature.isConfig is True:
+                if name == OTEXT or name.startswith(f"{OTEXT}@"):
+                    if loaded_fingerprint != current_fingerprint:
+                        logger.debug(
+                            "Skipping composed CFM: text config changed after load: %s", path
+                        )
+                        return None
                 continue
+
             if not feature.dataLoaded or feature.data is None:
                 return None
-            loaded_at = feature.dataLoaded
-            if (
-                not isinstance(loaded_at, bool)
-                and isinstance(loaded_at, (int, float))
-                and loaded_at < path.stat().st_mtime
-            ):
+            if loaded_fingerprint != current_fingerprint:
                 logger.debug("Skipping composed CFM: source changed after load: %s", path)
                 return None
 
