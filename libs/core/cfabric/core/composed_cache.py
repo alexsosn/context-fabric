@@ -73,6 +73,8 @@ class Fabric(BaseFabric):
     def _detect_cfm(self) -> Path | None:
         if self._cfm_topology_is_single_source():
             return super()._detect_cfm()
+        if not self.locations:
+            return None
 
         cfm_path = self._composition_cache_path()
         manifest_path = cfm_path / COMPOSITION_MANIFEST
@@ -81,11 +83,12 @@ class Fabric(BaseFabric):
 
         try:
             stored_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            current_manifest = self._composition_manifest()
         except (OSError, json.JSONDecodeError):
-            logger.debug("Ignoring unreadable composed CFM manifest at %s", manifest_path)
+            logger.debug("Ignoring unreadable or unstable composed CFM cache at %s", cfm_path)
             return None
 
-        if stored_manifest != self._composition_manifest():
+        if stored_manifest != current_manifest:
             logger.debug("Ignoring stale composed CFM cache at %s", cfm_path)
             return None
         return cfm_path
@@ -177,18 +180,26 @@ class Fabric(BaseFabric):
     def compile(self, output_dir: str | None = None, silent: str = SILENT_D) -> bool:
         if self._cfm_topology_is_single_source():
             return super().compile(output_dir=output_dir, silent=silent)
+        if not self.locations:
+            return False
 
         silent = silentConvert(silent)
         set_logging_level(silent)
 
-        source_manifest = self._composition_manifest()
-        precomputed = self._gather_composed_precomputed_data()
+        try:
+            source_manifest = self._composition_manifest()
+            precomputed = self._gather_composed_precomputed_data()
+            gathered_manifest = self._composition_manifest()
+        except OSError:
+            logger.debug("Skipping composed .cfm compilation because a source is unstable")
+            return False
+
         if precomputed is None:
             logger.debug(
                 "Skipping composed .cfm compilation until all effective features are loaded"
             )
             return False
-        if self._composition_manifest() != source_manifest:
+        if gathered_manifest != source_manifest:
             logger.debug("Skipping composed .cfm compilation because sources changed while gathering")
             return False
 
@@ -196,16 +207,21 @@ class Fabric(BaseFabric):
         manifest_path = cfm_path / COMPOSITION_MANIFEST
         try:
             manifest_path.unlink(missing_ok=True)
-        except OSError:
-            # Compiler will report any actual inability to write the output tree.
-            pass
+        except OSError as exc:
+            logger.warning("Cannot invalidate composed CFM manifest %s: %s", manifest_path, exc)
+            return False
 
         compiler = Compiler(self.locations[0])
         result = compiler.compile(cfm_path, precomputed=precomputed)
         if not result:
             return False
 
-        if self._composition_manifest() != source_manifest:
+        try:
+            final_manifest = self._composition_manifest()
+        except OSError:
+            logger.warning("A source disappeared during composed CFM compilation")
+            return False
+        if final_manifest != source_manifest:
             logger.warning(
                 "Sources changed during composed CFM compilation; leaving cache invalid"
             )
@@ -213,11 +229,19 @@ class Fabric(BaseFabric):
 
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = manifest_path.with_suffix(".json.tmp")
-        temporary.write_text(
-            json.dumps(source_manifest, indent=1, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
-        temporary.replace(manifest_path)
+        try:
+            temporary.write_text(
+                json.dumps(source_manifest, indent=1, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            temporary.replace(manifest_path)
+        except OSError as exc:
+            logger.warning("Cannot publish composed CFM manifest %s: %s", manifest_path, exc)
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+            return False
         return True
 
     def loadAll(self, silent: str = SILENT_D):
