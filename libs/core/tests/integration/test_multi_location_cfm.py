@@ -163,6 +163,25 @@ def test_source_change_during_compile_does_not_publish_valid_manifest(
     )
 
 
+def test_loaded_source_deleted_before_compile_is_rejected(fixtures_dir, tmp_path):
+    base = _copy_base(fixtures_dir, tmp_path)
+    module = _feature_only_module(tmp_path)
+    composed = Fabric(locations=[str(base), str(module)], silent="deep")
+
+    # Invoke the inherited loadAll implementation directly so all features are
+    # loaded but the composition-aware wrapper has not yet performed its final
+    # complete-cache compile.
+    base_fabric_class = Fabric.__mro__[1]
+    api = base_fabric_class.loadAll(composed, silent="deep")
+    assert api is not False
+    assert api.Fs("module_label", warn=False).v(3) == "three"
+
+    (module / "module_label.tf").unlink()
+
+    assert composed.compile(silent="deep") is False
+    assert composed._detect_cfm() is None
+
+
 def test_composition_cache_identity_is_order_sensitive(fixtures_dir, tmp_path):
     base = _copy_base(fixtures_dir, tmp_path)
     module = _feature_only_module(tmp_path)
