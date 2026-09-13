@@ -1,6 +1,6 @@
 """Composition-aware CFM caching for the public Fabric class.
 
-The classic CFM layout belongs to one source directory.  This module extends
+The classic CFM layout belongs to one source directory. This module extends
 Fabric with a namespaced cache for ordered multi-location/module compositions
 without weakening the legacy single-source behavior.
 """
@@ -91,7 +91,7 @@ class Fabric(BaseFabric):
         return cfm_path
 
     def _gather_composed_precomputed_data(self) -> dict[str, Any] | None:
-        """Return complete merged data, or None while a composition is partial."""
+        """Return complete fresh merged data, or None while a composition is partial."""
         otype_feat = self.features.get(OTYPE)
         oslots_feat = self.features.get(OSLOTS)
         if (
@@ -106,7 +106,8 @@ class Fabric(BaseFabric):
 
         # A composed cache must represent every effective physical data feature.
         # Before loadAll() finishes, unknown feature kinds are conservatively
-        # treated as data and therefore keep compilation disabled.
+        # treated as data and therefore keep compilation disabled. A source that
+        # is newer than its in-memory Data object also keeps compilation disabled.
         for feature in self.features.values():
             path = Path(feature.path)
             if path.suffix != ".tf" or not path.exists():
@@ -114,6 +115,14 @@ class Fabric(BaseFabric):
             if feature.isConfig is True:
                 continue
             if not feature.dataLoaded or feature.data is None:
+                return None
+            loaded_at = feature.dataLoaded
+            if (
+                not isinstance(loaded_at, bool)
+                and isinstance(loaded_at, (int, float))
+                and loaded_at < path.stat().st_mtime
+            ):
+                logger.debug("Skipping composed CFM: source changed after load: %s", path)
                 return None
 
         precomputed: dict[str, Any] = {
@@ -171,11 +180,16 @@ class Fabric(BaseFabric):
 
         silent = silentConvert(silent)
         set_logging_level(silent)
+
+        source_manifest = self._composition_manifest()
         precomputed = self._gather_composed_precomputed_data()
         if precomputed is None:
             logger.debug(
                 "Skipping composed .cfm compilation until all effective features are loaded"
             )
+            return False
+        if self._composition_manifest() != source_manifest:
+            logger.debug("Skipping composed .cfm compilation because sources changed while gathering")
             return False
 
         cfm_path = Path(output_dir) if output_dir is not None else self._composition_cache_path()
@@ -191,11 +205,16 @@ class Fabric(BaseFabric):
         if not result:
             return False
 
-        manifest = self._composition_manifest()
+        if self._composition_manifest() != source_manifest:
+            logger.warning(
+                "Sources changed during composed CFM compilation; leaving cache invalid"
+            )
+            return False
+
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = manifest_path.with_suffix(".json.tmp")
         temporary.write_text(
-            json.dumps(manifest, indent=1, ensure_ascii=False) + "\n",
+            json.dumps(source_manifest, indent=1, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         temporary.replace(manifest_path)
