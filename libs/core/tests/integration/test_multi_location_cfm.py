@@ -137,6 +137,32 @@ def test_composed_cache_invalidates_when_effective_overlay_changes(fixtures_dir,
     assert reused_api.Fs("module_label", warn=False).v(3) == "THREE"
 
 
+def test_source_change_during_compile_does_not_publish_valid_manifest(
+    fixtures_dir, tmp_path, monkeypatch
+):
+    from cfabric.core import composed_cache
+
+    base = _copy_base(fixtures_dir, tmp_path)
+    module = _feature_only_module(tmp_path)
+    real_compile = composed_cache.Compiler.compile
+
+    def compile_then_mutate(compiler, output_dir=None, precomputed=None):
+        result = real_compile(compiler, output_dir, precomputed=precomputed)
+        _rewrite_module_value(module, "three", "THREE")
+        return result
+
+    monkeypatch.setattr(composed_cache.Compiler, "compile", compile_then_mutate)
+
+    composed = Fabric(locations=[str(base), str(module)], silent="deep")
+    api = composed.loadAll(silent="deep")
+
+    assert api is not False
+    assert api.Fs("module_label", warn=False).v(3) == "three"
+    assert composed._detect_cfm() is None, (
+        "a source mutation across the compile boundary must leave no valid cache manifest"
+    )
+
+
 def test_composition_cache_identity_is_order_sensitive(fixtures_dir, tmp_path):
     base = _copy_base(fixtures_dir, tmp_path)
     module = _feature_only_module(tmp_path)
