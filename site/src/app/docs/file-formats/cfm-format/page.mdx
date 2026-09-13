@@ -46,6 +46,42 @@ corpus/
             └── ...
 ```
 
+### Composed corpora
+
+A `Fabric` built from more than one ordered `location` or `module` has a different cache identity from every constituent corpus. Context-Fabric stores that merged cache under the first/base location:
+
+```
+base/
+└── .cfm/
+    ├── 1/                                  # optional classic base-only cache
+    └── compositions/
+        └── <sha256-of-ordered-topology>/
+            └── 1/
+                ├── composition.json        # topology + source fingerprint manifest
+                ├── meta.json
+                ├── warp/
+                ├── features/
+                ├── edges/
+                └── computed/
+```
+
+The topology digest includes the complete ordered `locations` and `modules` lists. Reversing the order therefore selects a different cache even when the same directories are present.
+
+`composition.json` records:
+
+- the manifest format version;
+- normalized ordered locations and modules;
+- every effective TF feature selected after normal precedence resolution;
+- the resolved source path, file size, and nanosecond modification time for each selected feature.
+
+Shadowed duplicate features are not fingerprinted because they do not contribute to the materialized corpus. If precedence changes and a different file becomes effective, the manifest changes.
+
+A composed cache is accepted only when the stored manifest exactly matches the current effective sources. Added, removed, replaced, reordered, or normally edited source files therefore cause Context-Fabric to fall back to TF and rematerialize the composed CFM. The manifest is removed before compilation and published only after the source snapshot has remained stable across the compile boundary, so an interrupted or racing compilation is not treated as valid.
+
+Filesystem size and nanosecond mtime are deliberately used as the hot-path source fingerprint instead of hashing every byte of potentially gigabyte-scale corpora on every load. Tools that deliberately rewrite a file while preserving both values can bypass that cheap invalidation signal; remove the affected `.cfm` cache after such an operation.
+
+Composed auto-compilation occurs after an uncached `loadAll()`, when all effective features are available. A partial `load(features)` does not emit a composed cache because it cannot faithfully represent features that were not loaded.
+
 ## Corpus Metadata
 
 The `meta.json` file contains corpus-level information:
@@ -65,6 +101,8 @@ The `meta.json` file contains corpus-level information:
   "created": "2026-01-08T14:31:07.736728+00:00"
 }
 ```
+
+For a composed cache, `composition.json` is the authoritative identity/provenance sidecar; `meta.json` retains the regular CFM runtime metadata consumed by the mmap loader.
 
 ## Node Feature Storage
 
