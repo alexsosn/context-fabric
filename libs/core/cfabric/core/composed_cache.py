@@ -110,11 +110,15 @@ class Fabric(BaseFabric):
         # A composed cache must represent every effective physical data feature.
         # Before loadAll() finishes, unknown feature kinds are conservatively
         # treated as data and therefore keep compilation disabled. A source that
-        # is newer than its in-memory Data object also keeps compilation disabled.
+        # disappears or becomes newer than its in-memory Data object also keeps
+        # compilation disabled.
         for feature in self.features.values():
             path = Path(feature.path)
-            if path.suffix != ".tf" or not path.exists():
+            if path.suffix != ".tf":
                 continue
+            if not path.exists():
+                logger.debug("Skipping composed CFM: loaded source disappeared: %s", path)
+                return None
             if feature.isConfig is True:
                 continue
             if not feature.dataLoaded or feature.data is None:
