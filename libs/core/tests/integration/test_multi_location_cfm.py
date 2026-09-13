@@ -35,6 +35,14 @@ def _copy_base(fixtures_dir: Path, tmp_path: Path) -> Path:
     return base
 
 
+def _bump_mtime(path: Path, previous_mtime_ns: int) -> None:
+    after = path.stat()
+    os.utime(
+        path,
+        ns=(after.st_atime_ns, max(after.st_mtime_ns, previous_mtime_ns + 1_000_000_000)),
+    )
+
+
 def _rewrite_module_value(module: Path, old: str, new: str) -> None:
     feature = module / "module_label.tf"
     before = feature.stat()
@@ -44,11 +52,7 @@ def _rewrite_module_value(module: Path, old: str, new: str) -> None:
     )
     # Make the cache-invalidation contract deterministic even on filesystems with
     # coarse timestamp updates.
-    after = feature.stat()
-    os.utime(
-        feature,
-        ns=(after.st_atime_ns, max(after.st_mtime_ns, before.st_mtime_ns + 1_000_000_000)),
-    )
+    _bump_mtime(feature, before.st_mtime_ns)
 
 
 def test_base_cfm_cache_does_not_hide_second_location_feature(fixtures_dir, tmp_path):
@@ -177,6 +181,27 @@ def test_loaded_source_deleted_before_compile_is_rejected(fixtures_dir, tmp_path
     assert api.Fs("module_label", warn=False).v(3) == "three"
 
     (module / "module_label.tf").unlink()
+
+    assert composed.compile(silent="deep") is False
+    assert composed._detect_cfm() is None
+
+
+def test_loaded_otext_changed_before_compile_is_rejected(fixtures_dir, tmp_path):
+    base = _copy_base(fixtures_dir, tmp_path)
+    module = _feature_only_module(tmp_path)
+    composed = Fabric(locations=[str(base), str(module)], silent="deep")
+
+    base_fabric_class = Fabric.__mro__[1]
+    api = base_fabric_class.loadAll(composed, silent="deep")
+    assert api is not False
+
+    otext = base / "otext.tf"
+    before = otext.stat()
+    otext.write_text(
+        otext.read_text(encoding="utf-8") + "@description=changed-after-load\n",
+        encoding="utf-8",
+    )
+    _bump_mtime(otext, before.st_mtime_ns)
 
     assert composed.compile(silent="deep") is False
     assert composed._detect_cfm() is None
