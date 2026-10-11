@@ -7,6 +7,7 @@ empty string is distinct from an absent value.
 """
 from __future__ import annotations
 
+from bisect import bisect_left
 from collections.abc import Iterator, Sequence
 from typing import Any
 
@@ -49,6 +50,11 @@ class SparseStringPool:
         # Existing StringPool.get_value_index() performs a linear scan, which
         # would make large sparse vocabulary filters prohibitively expensive.
         self._lookup: dict[str, int] | None = None
+        # np.searchsorted() per scalar was 45x slower than dense indexing
+        # on TLHdig docid. Build a bounded coarse index only after repeated use.
+        self._bucket_offsets: np.ndarray | None = None
+        self._bucket_shift: int = 8
+        self._scalar_lookups: int = 0
 
     @staticmethod
     def code_dtype(n_strings: int) -> type[np.unsignedinteger[Any]]:
@@ -103,10 +109,40 @@ class SparseStringPool:
         # The feature API expects the complete addressable node space.
         return self.max_node
 
+    def _prepare_scalar_index(self) -> None:
+        """Build coarse search bounds with controlled auxiliary RAM.
+
+        Use 256-node blocks when useful, larger powers-of-two blocks for
+        extremely sparse features or enormous address spaces. Offsets index
+        the compact sorted nodes array, not original node IDs.
+        """
+        max_entries = min(max(len(self.nodes), 16), 1_000_000)
+        shift = 8
+        while ((self.max_node - 1) >> shift) + 1 > max_entries:
+            shift += 1
+        n_blocks = ((self.max_node - 1) >> shift) + 1
+        boundaries = (np.arange(n_blocks + 1, dtype=np.uint64) << shift) + 1
+        self._bucket_offsets = np.searchsorted(
+            self.nodes, boundaries, side='left'
+        ).astype(np.uint32)
+        self._bucket_shift = shift
+
     def get(self, node: int) -> str | None:
         if node < 1 or node > self.max_node or len(self.nodes) == 0:
             return None
-        position = int(np.searchsorted(self.nodes, node))
+        # C-accelerated bisect avoids repeated module-level NumPy dispatch.
+        offsets = self._bucket_offsets
+        if offsets is None:
+            self._scalar_lookups += 1
+            if self._scalar_lookups >= 32:
+                self._prepare_scalar_index()
+                offsets = self._bucket_offsets
+        if offsets is None:
+            position = bisect_left(self.nodes, node)
+        else:
+            bucket = (node - 1) >> self._bucket_shift
+            lo, hi = int(offsets[bucket]), int(offsets[bucket + 1])
+            position = bisect_left(self.nodes, node, lo, hi)
         if position >= len(self.nodes) or int(self.nodes[position]) != node:
             return None
         return str(self.strings[int(self.codes[position])])
