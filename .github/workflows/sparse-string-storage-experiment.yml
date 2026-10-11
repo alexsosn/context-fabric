@@ -11,6 +11,7 @@ on:
       - "libs/core/tests/unit/storage/test_sparse_string_pool_experiment.py"
       - "libs/core/tests/unit/storage/test_sparse_cfm_query_parity.py"
       - "libs/core/tests/unit/storage/benchmark_sparse_string_real.py"
+      - "libs/core/tests/unit/storage/benchmark_sparse_worker_memory.py"
       - ".github/workflows/sparse-string-storage-experiment.yml"
 
 permissions:
@@ -39,3 +40,5 @@ jobs:
           sha256sum "${RUNNER_TEMP}/docid.tf"
       - name: Measure real TLHdig docid source
         run: python tests/unit/storage/benchmark_sparse_string_real.py "${RUNNER_TEMP}/docid.tf" 8285600
+      - name: Measure private and shared memory across independent workers
+        run: python tests/unit/storage/benchmark_sparse_worker_memory.py "${RUNNER_TEMP}/docid.tf" 8285600 --workers 3
