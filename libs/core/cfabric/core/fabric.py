@@ -1489,7 +1489,8 @@ class Fabric:
             # Older dense string pools remain unchanged by default.
             if storage == 'sparse-string-v1':
                 str_pool = SparseStringPool.load(
-                    str(features_dir / fname), max_node=mmap_mgr.max_node, mmap_mode='r'
+                    str(features_dir / '.sparse-string-v1' / fname / 'pool'),
+                    max_node=mmap_mgr.max_node, mmap_mode='r'
                 )
             else:
                 str_pool = mmap_mgr.get_string_pool(fname)
