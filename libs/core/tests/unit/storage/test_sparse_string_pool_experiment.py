@@ -184,3 +184,43 @@ def test_non_integer_sparse_indexes_rejected():
             np.array([0], dtype=np.uint8),
             10,
         )
+
+
+def test_bounded_scalar_index_roundtrip_across_block_edges(tmp_path):
+    """Sparse index must work for far-apart nodes and uint32 boundaries."""
+    highest = 2**32 - 1
+    data = {
+        1: "first", 255: "near", 256: "edge", 257: "next",
+        1023: "", 1024: "edge", 1025: "after",
+        highest - 1: "last", highest: "last",
+    }
+    pool = SparseStringPool.from_dict(data, max_node=highest)
+    prefix = str(tmp_path / "sparse-index")
+    pool.save(prefix)
+    mmap_pool = SparseStringPool.load(prefix, max_node=highest)
+    for candidate in (pool, mmap_pool):
+        for node in (
+            -1, 0, 1, 2, 254, 255, 256, 257, 258, 1022, 1023, 1024, 1025,
+            1026, highest - 2, highest - 1, highest, highest + 1,
+        ):
+            assert candidate.get(node) == data.get(node)
+        # A bounded index should be built lazily only for repeated scalar gets.
+        for node in (1, 257, highest, 512, highest - 2) * 200:
+            assert candidate.get(node) == data.get(node)
+        assert candidate._bucket_offsets is not None
+        assert candidate._bucket_offsets.nbytes <= max(len(data) * 4, 256)
+        assert dict(candidate.items()) == data
+
+
+def test_randomized_sparse_scalar_lookup_matches_dense():
+    from cfabric.storage.string_pool import StringPool
+
+    import random
+    rng = random.Random(1989)
+    for max_node, count in ((4097, 256), (28000, 43), (28000, 12000)):
+        positions = rng.sample(range(1, max_node + 1), count)
+        data = {p: ("", "𐎀", "foo", "β")[i % 4] for i, p in enumerate(positions)}
+        dense = StringPool.from_dict(data, max_node)
+        sparse = SparseStringPool.from_dict(data, max_node)
+        for node in [0, max_node + 1, *positions, *rng.sample(range(1, max_node + 1), 1000)]:
+            assert dense.get(node) == sparse.get(node)
