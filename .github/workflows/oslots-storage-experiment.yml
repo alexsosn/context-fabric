@@ -7,6 +7,7 @@ on:
       - 'libs/core/tests/unit/storage/test_oslots_rle_experiment.py'
       - '.github/workflows/oslots-storage-experiment.yml'
       - 'libs/core/tests/unit/storage/measure_oslots_tf.py'
+      - 'libs/core/tests/unit/storage/measure_feature_density.py'
   workflow_dispatch:
 
 permissions:
@@ -58,3 +59,23 @@ jobs:
           oslots="$(find "${RUNNER_TEMP}/oracc" -name oslots.tf -type f -print -quit)"
           test -n "$oslots"
           python tests/unit/storage/measure_oslots_tf.py "$oslots"
+
+      - name: Measure ORACC feature sparsity on published 1.0 archive
+        run: |
+          root="${RUNNER_TEMP}/oracc/tf/0.4.0"
+          python tests/unit/storage/measure_feature_density.py 1208649 \
+            "$root/form.tf" "$root/sign_json.tf" "$root/translation_text.tf" "$root/synthetic.tf"
+      - name: Download representative pinned TLHdig features
+        run: |
+          for feat in cu_sign lemma docid cu_aligned; do
+            curl --fail --location --silent --show-error --retry 3 --max-time 240 \
+              "https://raw.githubusercontent.com/alexsosn/TLHdig-TF/88dc8298547b11e8a954a7bfb07dd3e55aa716ab/tf/0.4.0/${feat}.tf" \
+              --output "${RUNNER_TEMP}/tlhdig_${feat}.tf"
+          done
+      - name: Measure TLHdig feature sparsity with full node address space
+        run: |
+          python tests/unit/storage/measure_feature_density.py 8285600 \
+            "${RUNNER_TEMP}/tlhdig_cu_sign.tf" \
+            "${RUNNER_TEMP}/tlhdig_lemma.tf" \
+            "${RUNNER_TEMP}/tlhdig_docid.tf" \
+            "${RUNNER_TEMP}/tlhdig_cu_aligned.tf"
