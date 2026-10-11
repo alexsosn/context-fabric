@@ -22,6 +22,7 @@ def measure(path: Path, max_node: int) -> dict[str, int | float | str]:
     feature_type = None
     implicit_node = 1
     populated = 0
+    last_node = 0
     distinct: set[str] = set()
     with path.open(encoding="utf-8") as src:
         for line_number, raw in enumerate(src, 1):
@@ -42,6 +43,7 @@ def measure(path: Path, max_node: int) -> dict[str, int | float | str]:
             fields = line.split("\t")
             if len(fields) == 1:
                 n_nodes = 1
+                first_seen = implicit_node
                 max_seen = implicit_node
                 raw_value = fields[0]
             elif len(fields) == 2:
@@ -49,10 +51,17 @@ def measure(path: Path, max_node: int) -> dict[str, int | float | str]:
                 if not nodes:
                     raise ValueError(f"{path}:{line_number}: empty node spec")
                 n_nodes = len(nodes)
+                first_seen = min(nodes)
                 max_seen = max(nodes)
                 raw_value = fields[1]
             else:
                 raise ValueError(f"{path}:{line_number}: unexpected fields")
+            if first_seen <= last_node:
+                raise ValueError(
+                    f"{path}:{line_number}: duplicate/unordered feature node "
+                    f"{first_seen} after {last_node}"
+                )
+            last_node = max_seen
             implicit_node = max_seen + 1
             if max_seen > max_node:
                 raise ValueError(f"{path}:{line_number}: node {max_seen} > {max_node}")
