@@ -33,6 +33,20 @@ def elapsed_ns(fn, nodes, repeats=3):
     return round(statistics.median(times), 2)
 
 
+def query_ms(fn, repeats=3):
+    durations = []
+    previous = None
+    for _ in range(repeats):
+        start = time.perf_counter_ns()
+        nodes = fn()
+        elapsed = (time.perf_counter_ns() - start) / 1e6
+        if previous is not None:
+            assert nodes.tolist() == previous
+        previous = nodes.tolist()
+        durations.append(elapsed)
+    return round(statistics.median(durations), 3), len(previous or [])
+
+
 def run(tf: Path, max_node: int):
     metadata, data, is_edge, _, is_config = Compiler(str(tf.parent))._parse_tf_file(tf)
     if is_edge or is_config or metadata.get("valueType", "str") != "str":
@@ -62,7 +76,24 @@ def run(tf: Path, max_node: int):
         dense.save(str(old))
         sparse.save(str(new))
         from_disk = SparseStringPool.load(str(new), max_node)
+        dense_from_disk = StringPool.load(str(old))
         assert from_disk.to_dict() == data
+        assert dense_from_disk.to_dict() == data
+        assert all(dense_from_disk.get(n) == from_disk.get(n) for n in probes)
+
+        # The query backend always compares entire CFM node space on F.s(),
+        # so also measure filter_by_value(range(1, max_node + 1)).
+        first_value = data[existing[0]]
+        query_nodes = range(1, max_node + 1)
+        dense_matches = dense_from_disk.filter_by_value(query_nodes, first_value)
+        sparse_matches = from_disk.filter_by_value(query_nodes, first_value)
+        assert dense_matches.tolist() == sparse_matches.tolist()
+        dense_filter_ms, matched_count = query_ms(
+            lambda: dense_from_disk.filter_by_value(query_nodes, first_value)
+        )
+        sparse_filter_ms, _ = query_ms(
+            lambda: from_disk.filter_by_value(query_nodes, first_value)
+        )
         totals = (
             sum(p.stat().st_size for p in old.parent.iterdir()),
             sum(p.stat().st_size for p in new.parent.iterdir()),
@@ -80,8 +111,15 @@ def run(tf: Path, max_node: int):
             "sparse_full_npy_bytes": totals[1],
             "npy_saving_pct": round(100 * (1 - totals[1] / totals[0]), 2),
             "lookup_probe_count": len(probes),
-            "dense_lookup_ns": elapsed_ns(dense.get, probes),
+            "dense_lookup_ns": elapsed_ns(dense_from_disk.get, probes),
             "sparse_lookup_ns": elapsed_ns(from_disk.get, probes),
+            "sparse_scalar_index_bytes": (
+                0 if from_disk._bucket_offsets is None
+                else from_disk._bucket_offsets.nbytes
+            ),
+            "filtered_value_count": matched_count,
+            "dense_filter_ms": dense_filter_ms,
+            "sparse_filter_ms": sparse_filter_ms,
         }
     print("REAL_SPARSE_STRING " + json.dumps(measured, ensure_ascii=False))
 
