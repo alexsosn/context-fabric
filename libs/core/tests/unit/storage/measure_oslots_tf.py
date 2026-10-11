@@ -12,7 +12,7 @@ from pathlib import Path
 from cfabric.storage.csr import CSRArray
 from cfabric.utils.helpers import setFromSpec
 
-from test_oslots_rle_experiment import RunLengthCSR, measure_lookup
+from test_oslots_rle_experiment import RunLengthCSR, AdaptiveRunCSR, measure_lookup
 
 
 def scan(path: Path, sample_size: int = 2048) -> None:
@@ -22,6 +22,8 @@ def scan(path: Path, sample_size: int = 2048) -> None:
     count = 0
     total_slots = 0
     total_runs = 0
+    adaptive_words = 0
+    adaptive_encoded_rows = 0
     contiguous_rows = 0
     min_source = None
     max_source = 0
@@ -65,6 +67,8 @@ def scan(path: Path, sample_size: int = 2048) -> None:
                 count += 1
                 total_slots += len(targets)
                 total_runs += runs
+                adaptive_words += min(len(targets), 2 * runs)
+                adaptive_encoded_rows += (2 * runs < len(targets))
                 contiguous_rows += runs == 1
                 # Uniform reservoir sample for timing; workload-specific estimates
                 # are computed over the entire feature, not the sample.
@@ -83,22 +87,29 @@ def scan(path: Path, sample_size: int = 2048) -> None:
         raise ValueError("non-contiguous source ID range; source gap handling needed")
     csr_bytes = 4 * (row_count + 1 + total_slots)
     rle_bytes = 4 * (row_count + 1 + 2 * total_runs)
+    adaptive_bytes = 4 * (row_count + 1 + adaptive_words) + row_count
     original = CSRArray.from_sequences(sample)
     alternative = RunLengthCSR.from_sequences(sample)
+    adaptive = AdaptiveRunCSR.from_sequences(sample)
     for i, expected in enumerate(sample):
         assert tuple(original.get_as_tuple(i)) == expected
         assert alternative.get_as_tuple(i) == expected
+        assert adaptive.get_as_tuple(i) == expected
     probes = [rng.randrange(len(sample)) for _ in range(1000)]
     csr_time = measure_lookup(original.get_as_tuple, probes)
     rle_time = measure_lookup(alternative.get_as_tuple, probes)
+    adaptive_time = measure_lookup(adaptive.get_as_tuple, probes)
     print(
         f"REAL_OSLOTS corpus={path} source_rows={count} slot_links={total_slots}"
         f" runs={total_runs} contiguous_rows={contiguous_rows}"
         f" contiguous_pct={100 * contiguous_rows / count:.2f}"
         f" csr_bytes={csr_bytes} rle_bytes={rle_bytes}"
+        f" adaptive_bytes={adaptive_bytes} adaptive_encoded_rows={adaptive_encoded_rows}"
+        f" adaptive_reduction_pct={100 * (1 - adaptive_bytes / csr_bytes):.2f}"
         f" reduction_pct={100 * (1 - rle_bytes / csr_bytes):.2f}"
         f" sampled_csr_us_per_row={csr_time:.3f}"
-        f" sampled_rle_us_per_row={rle_time:.3f}",
+        f" sampled_rle_us_per_row={rle_time:.3f}"
+        f" sampled_adaptive_us_per_row={adaptive_time:.3f}",
         flush=True,
     )
 
