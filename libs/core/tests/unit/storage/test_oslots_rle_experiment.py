@@ -78,8 +78,8 @@ def compare(rows):
     candidate = RunLengthCSR.from_sequences(rows)
     assert len(baseline) == len(candidate.indptr) - 1
     for i, expected in enumerate(rows):
-        assert tuple(baseline.get_as_tuple(i)) == expected
-        assert candidate.get_as_tuple(i) == expected
+        assert tuple(baseline.get_as_tuple(i)) == tuple(expected)
+        assert candidate.get_as_tuple(i) == tuple(expected)
     csr_bytes = baseline.indptr.nbytes + baseline.data.nbytes
     run_bytes = candidate.nbytes
     return baseline, candidate, csr_bytes, run_bytes
