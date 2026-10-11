@@ -34,12 +34,19 @@ def test_numeric_blank_is_missing_and_zero_is_present(tmp_path):
     assert r["unique_encoded_values"] == 2
 
 
-@pytest.mark.parametrize("body", ["1\tA\n1\tB\n", "3\tA\n2\tB\n"])
-def test_duplicate_or_unsorted_nodes_fail_closed(tmp_path, body):
+def test_duplicates_fail_closed(tmp_path):
     path = tmp_path / "dup.tf"
-    path.write_text("@node\n\n" + body, encoding="utf-8")
-    with pytest.raises(ValueError, match="duplicate/unordered"):
+    path.write_text("@node\\n\\n1\\tA\\n1\\tB\\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="duplicate feature node"):
         measure(path, max_node=10)
+
+
+def test_unordered_distinct_nodes_are_legal(tmp_path):
+    path = tmp_path / "unsorted.tf"
+    path.write_text("@node\\n\\n3\\tA\\n1\\tB\\n2\\tC\\n", encoding="utf-8")
+    r = measure(path, max_node=10)
+    assert r["populated"] == 3
+    assert r["unique_encoded_values"] == 3
 
 
 def test_out_of_range_and_not_a_node_feature(tmp_path):
