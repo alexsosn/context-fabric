@@ -26,7 +26,7 @@
           "path": "",
           "docstring": {
             "summary": "A cached search result.",
-            "description": "A cached search result.\n\nAttributes:\n    cursor_id: UUID for pagination/lookup\n    corpus: The corpus name\n    template: The search template\n    results: Raw search results (list of node ID tuples)\n    created_at: Unix timestamp when cached\n    expires_at: Unix timestamp when cache entry expires\n    last_accessed: Unix timestamp of last access (for LRU)",
+            "description": "A cached search result.\n\nAttributes:\n    cursor_id: UUID for pagination/lookup\n    corpus: The corpus name\n    template: The search template\n    results: Raw search results (list of node ID tuples)\n    total_count: Number of matches before the cache retention limit\n    created_at: Unix timestamp when cached\n    expires_at: Unix timestamp when cache entry expires\n    last_accessed: Unix timestamp of last access (for LRU)",
             "parsed": []
           },
           "bases": [],
@@ -34,7 +34,7 @@
             "__init__": {
               "name": "__init__",
               "kind": "function",
-              "signature": "(self, cursor_id: str, corpus: str, template: str, results: list[tuple[(int, ...)]], created_at: float, expires_at: float, last_accessed: float = {'arguments': [], 'cls': 'ExprCall', 'function': {'cls': 'ExprAttribute', 'values': [{'cls': 'ExprName', 'member': None, 'name': 'time'}, {'cls': 'ExprName', 'member': None, 'name': 'time'}]}})",
+              "signature": "(self, cursor_id: str, corpus: str, template: str, results: list[tuple[(int, ...)]], created_at: float, expires_at: float, last_accessed: float = {'arguments': [], 'cls': 'ExprCall', 'function': {'cls': 'ExprAttribute', 'values': [{'cls': 'ExprName', 'member': None, 'name': 'time'}, {'cls': 'ExprName', 'member': None, 'name': 'time'}]}}, total_count: int = 0)",
               "docstring": {
                 "summary": "",
                 "description": "",
@@ -105,6 +105,34 @@
                       ]
                     }
                   },
+                  "kind": "positional or keyword"
+                },
+                {
+                  "name": "total_count",
+                  "type": "int",
+                  "default": "0",
+                  "kind": "positional or keyword"
+                }
+              ],
+              "returns": {
+                "type": "None"
+              },
+              "decorators": []
+            },
+            "__post_init__": {
+              "name": "__post_init__",
+              "kind": "function",
+              "signature": "(self)",
+              "docstring": {
+                "summary": "",
+                "description": "",
+                "sections": {}
+              },
+              "parameters": [
+                {
+                  "name": "self",
+                  "type": "",
+                  "default": null,
                   "kind": "positional or keyword"
                 }
               ],
@@ -187,6 +215,16 @@
               },
               "value": null
             },
+            "is_truncated": {
+              "name": "is_truncated",
+              "type": "bool",
+              "docstring": {
+                "summary": "Whether the retained results are only a prefix of all matches.",
+                "description": "Whether the retained results are only a prefix of all matches.",
+                "parsed": []
+              },
+              "value": null
+            },
             "last_accessed": {
               "name": "last_accessed",
               "type": "float",
@@ -249,6 +287,16 @@
                 "sections": {}
               },
               "value": null
+            },
+            "total_count": {
+              "name": "total_count",
+              "type": "int",
+              "docstring": {
+                "summary": "",
+                "description": "",
+                "sections": {}
+              },
+              "value": "0"
             }
           }
         },
@@ -2084,7 +2132,7 @@
         "_format_passages": {
           "name": "_format_passages",
           "kind": "function",
-          "signature": "(api: Any, results: list[tuple[(int, ...)]], template: str, limit: int)",
+          "signature": "(api: Any, results: list[tuple[(int, ...)]], template: str, limit: int, total_count: int | None = None)",
           "docstring": {
             "summary": "Format search results as readable passages.",
             "description": "Format search results as readable passages.",
@@ -2114,6 +2162,12 @@
               "type": "int",
               "default": null,
               "kind": "positional or keyword"
+            },
+            {
+              "name": "total_count",
+              "type": "int | None",
+              "default": "None",
+              "kind": "positional or keyword"
             }
           ],
           "returns": {
@@ -2124,7 +2178,7 @@
         "_format_results": {
           "name": "_format_results",
           "kind": "function",
-          "signature": "(api: Any, results: list[tuple[(int, ...)]], template: str, cursor_id: str, limit: int)",
+          "signature": "(api: Any, results: list[tuple[(int, ...)]], template: str, cursor_id: str, limit: int, total_count: int | None = None)",
           "docstring": {
             "summary": "Format search results as paginated node info.",
             "description": "Format search results as paginated node info.",
@@ -2159,6 +2213,12 @@
               "name": "limit",
               "type": "int",
               "default": null,
+              "kind": "positional or keyword"
+            },
+            {
+              "name": "total_count",
+              "type": "int | None",
+              "default": "None",
               "kind": "positional or keyword"
             }
           ],
