@@ -127,7 +127,7 @@ def test_recompile_switches_backends_without_leaking_stale_arrays(tmp_path):
     fixture = Path(__file__).resolve().parents[2] / "fixtures" / "mini_corpus"
     root = tmp_path / "mini"
     shutil.copytree(fixture, root)
-    (root / "rare_label.tf").write_text("@node\\n@valueType=str\\n\\n1\\tvalue\\n", encoding="utf8")
+    (root / "rare_label.tf").write_text("@node\n@valueType=str\n\n1\tvalue\n", encoding="utf8")
     output = root / ".cfm" / "1" / "features"
     prefix = output / "rare_label"
     assert Compiler(str(root), experimental_sparse_strings=True).compile()
@@ -145,10 +145,10 @@ def test_sparse_artifacts_do_not_collide_with_other_feature_names(tmp_path):
     fixture = Path(__file__).resolve().parents[2] / "fixtures" / "mini_corpus"
     root = tmp_path / "mini"
     shutil.copytree(fixture, root)
-    (root / "demo.tf").write_text("@node\\n@valueType=str\\n\\n1\\tvalue\\n", encoding="utf8")
+    (root / "demo.tf").write_text("@node\n@valueType=str\n\n1\tvalue\n", encoding="utf8")
     # Old un-namespaced demo_nodes.npy conflicts with the valid integer
     # feature named demo_nodes.
-    (root / "demo_nodes.tf").write_text("@node\\n@valueType=int\\n\\n1\\t123\\n", encoding="utf8")
+    (root / "demo_nodes.tf").write_text("@node\n@valueType=int\n\n1\t123\n", encoding="utf8")
     assert Compiler(str(root), experimental_sparse_strings=True).compile()
     api = Fabric(locations=str(root), silent="deep").load("demo demo_nodes")
     assert api.F.demo.v(1) == "value"
