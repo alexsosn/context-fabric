@@ -754,18 +754,21 @@ class Compiler:
             self.experimental_sparse_strings
             and SparseStringPool.is_worth_using(data, self.max_node)
         )
-        # Recompiling into an existing CFM directory must not accumulate
-        # obsolete index arrays from the other representation.
-        prefix = output_dir / feature_name
+        # Namespace experimental arrays so a feature named "lemma_nodes"
+        # cannot collide with the index arrays of feature "lemma".
+        sparse_dir = output_dir / '.sparse-string-v1' / feature_name
         if sparse:
-            (output_dir / f'{feature_name}_idx.npy').unlink(missing_ok=True)
+            sparse_dir.mkdir(parents=True, exist_ok=True)
             pool = SparseStringPool.from_dict(data, self.max_node)
-            pool.save(str(prefix))
+            pool.save(str(sparse_dir / 'pool'))
         else:
-            for suffix in ('nodes', 'codes'):
-                (output_dir / f'{feature_name}_{suffix}.npy').unlink(missing_ok=True)
+            # This removes only files owned by this experimental feature.
+            # Do not unlink `<feature>_idx.npy` when switching to sparse: it
+            # could also belong to a distinct valid integer node feature.
+            import shutil
+            shutil.rmtree(sparse_dir, ignore_errors=True)
             pool = StringPool.from_dict(data, self.max_node)
-            pool.save(str(prefix))
+            pool.save(str(output_dir / feature_name))
 
         # Save metadata. Unknown storage markers must fail closed in loaders.
         meta: dict[str, Any] = {
