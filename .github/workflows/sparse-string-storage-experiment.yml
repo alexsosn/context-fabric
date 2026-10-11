@@ -9,6 +9,7 @@ on:
       - "libs/core/cfabric/io/compiler.py"
       - "libs/core/cfabric/core/fabric.py"
       - "libs/core/tests/unit/storage/test_sparse_string_pool_experiment.py"
+      - "libs/core/tests/unit/storage/test_sparse_cfm_query_parity.py"
       - "libs/core/tests/unit/storage/benchmark_sparse_string_real.py"
       - ".github/workflows/sparse-string-storage-experiment.yml"
 
@@ -29,7 +30,7 @@ jobs:
       - name: Install core package with tests
         run: python -m pip install -e ".[dev]"
       - name: Verify sparse storage equivalence and opt-in integration
-        run: python -m pytest tests/unit/storage/test_sparse_string_pool_experiment.py -v
+        run: python -m pytest tests/unit/storage/test_sparse_string_pool_experiment.py tests/unit/storage/test_sparse_cfm_query_parity.py -v
       - name: Download pinned TLHdig-TF 0.4.0 sparse node feature
         run: |
           curl --fail --location --silent --show-error --retry 3 --max-time 240 \
