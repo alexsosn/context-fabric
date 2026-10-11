@@ -23,10 +23,25 @@ class SparseStringPool:
         codes: np.ndarray,
         max_node: int,
     ) -> None:
+        if nodes.ndim != 1 or codes.ndim != 1 or strings.ndim != 1:
+            raise ValueError("sparse arrays must be one-dimensional")
+        if nodes.dtype != np.dtype('uint32'):
+            raise ValueError("sparse node IDs must be uint32")
+        if codes.dtype not in (
+            np.dtype('uint8'), np.dtype('uint16'), np.dtype('uint32')
+        ):
+            raise ValueError("sparse string codes must be unsigned integers")
         if len(nodes) != len(codes):
             raise ValueError("sparse node and code array lengths differ")
         if not 0 <= max_node <= MAX_NODE_UINT32:
             raise ValueError("max_node exceeds uint32 capacity")
+        if len(nodes):
+            if nodes[0] < 1 or nodes[-1] > max_node:
+                raise ValueError("sparse node outside corpus bounds")
+            if np.any(nodes[1:] <= nodes[:-1]):
+                raise ValueError("sparse node IDs must be unique and increasing")
+            if np.max(codes) >= len(strings):
+                raise ValueError("sparse code refers outside vocabulary")
         self.strings = strings
         self.nodes = nodes
         self.codes = codes
