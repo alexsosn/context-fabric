@@ -121,3 +121,21 @@ def test_dense_threshold_does_not_select_sparse(tmp_path):
     meta = json.loads((features / "frequent_label_meta.json").read_text())
     assert meta.get("storage") is None
     assert (features / "frequent_label_idx.npy").exists()
+
+
+def test_recompile_switches_backends_without_leaking_stale_arrays(tmp_path):
+    fixture = Path(__file__).resolve().parents[2] / "fixtures" / "mini_corpus"
+    root = tmp_path / "mini"
+    shutil.copytree(fixture, root)
+    (root / "rare_label.tf").write_text("@node\\n@valueType=str\\n\\n1\\tvalue\\n", encoding="utf8")
+    output = root / ".cfm" / "1" / "features"
+    prefix = output / "rare_label"
+    assert Compiler(str(root), experimental_sparse_strings=True).compile()
+    assert prefix.with_name("rare_label_nodes.npy").exists()
+    assert Compiler(str(root)).compile()
+    assert prefix.with_name("rare_label_idx.npy").exists()
+    assert not prefix.with_name("rare_label_nodes.npy").exists()
+    assert not prefix.with_name("rare_label_codes.npy").exists()
+    assert Compiler(str(root), experimental_sparse_strings=True).compile()
+    assert not prefix.with_name("rare_label_idx.npy").exists()
+    assert prefix.with_name("rare_label_codes.npy").exists()
