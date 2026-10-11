@@ -8,6 +8,7 @@ on:
       - '.github/workflows/oslots-storage-experiment.yml'
       - 'libs/core/tests/unit/storage/measure_oslots_tf.py'
       - 'libs/core/tests/unit/storage/measure_feature_density.py'
+      - 'libs/core/tests/unit/storage/test_feature_density_experiment.py'
   workflow_dispatch:
 
 permissions:
@@ -27,7 +28,7 @@ jobs:
       - name: Install fork source and test dependencies
         run: python -m pip install -e ".[dev]"
       - name: Check lossless semantics and report storage/time trade-offs
-        run: python -m pytest tests/unit/storage/test_oslots_rle_experiment.py -q -s
+        run: python -m pytest tests/unit/storage/test_oslots_rle_experiment.py tests/unit/storage/test_feature_density_experiment.py -q -s
       - name: Download pinned real BHSA oslots (2021 dataset)
         run: |
           curl --fail --location --silent --show-error --retry 3 --max-time 180 \
