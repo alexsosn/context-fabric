@@ -23,6 +23,7 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
 from cfabric.storage.string_pool import StringPool, IntFeatureArray
+from cfabric.storage.sparse_string_pool import SparseStringPool
 from cfabric.utils.helpers import safe_rank_key
 
 if TYPE_CHECKING:
@@ -46,7 +47,7 @@ class NodeFeature:
         self,
         api: Api,
         metaData: dict[str, str],
-        data: dict[int, str | int] | StringPool | IntFeatureArray,
+        data: dict[int, str | int] | StringPool | IntFeatureArray | SparseStringPool,
     ) -> None:
         self.api = api
         self.meta = metaData
@@ -57,7 +58,7 @@ class NodeFeature:
         """
 
         self._data = data
-        self._is_mmap = isinstance(data, (StringPool, IntFeatureArray))
+        self._is_mmap = isinstance(data, (StringPool, IntFeatureArray, SparseStringPool))
         self._cached_data: dict[int, str | int] | None = None  # Cache for materialized dict
 
     @property
