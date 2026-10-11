@@ -35,3 +35,26 @@ jobs:
           sha256sum "${RUNNER_TEMP}/bhsa_oslots.tf"
       - name: Measure real BHSA run-length versus CSR size
         run: python tests/unit/storage/measure_oslots_tf.py "${RUNNER_TEMP}/bhsa_oslots.tf"
+
+      - name: Download pinned TLHdig-TF 0.4.0 oslots
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 240 \
+            'https://raw.githubusercontent.com/alexsosn/TLHdig-TF/88dc8298547b11e8a954a7bfb07dd3e55aa716ab/tf/0.4.0/oslots.tf' \
+            --output "${RUNNER_TEMP}/tlhdig_oslots.tf"
+          sha256sum "${RUNNER_TEMP}/tlhdig_oslots.tf"
+      - name: Measure real TLHdig run-length versus CSR size
+        run: python tests/unit/storage/measure_oslots_tf.py "${RUNNER_TEMP}/tlhdig_oslots.tf"
+      - name: Download and verify immutable ORACC-TF RIAO-RINAP 1.0 release
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 240 \
+            'https://github.com/alexsosn/ORACC-TF/releases/download/v1.0.0/assyrian-royal-inscriptions-1.0.0.zip' \
+            --output "${RUNNER_TEMP}/oracc.zip"
+          echo '788f580604e30054fab34c4c3ea60ec3eb4f399412f1da90f778469d03507468  '"${RUNNER_TEMP}/oracc.zip" | sha256sum -c -
+          mkdir -p "${RUNNER_TEMP}/oracc"
+          unzip -q "${RUNNER_TEMP}/oracc.zip" -d "${RUNNER_TEMP}/oracc"
+          find "${RUNNER_TEMP}/oracc" -name 'oslots.tf' -print
+      - name: Measure real ORACC RIAO-RINAP run-length versus CSR size
+        run: |
+          oslots="$(find "${RUNNER_TEMP}/oracc" -name oslots.tf -type f -print -quit)"
+          test -n "$oslots"
+          python tests/unit/storage/measure_oslots_tf.py "$oslots"
