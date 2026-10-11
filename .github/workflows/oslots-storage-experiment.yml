@@ -1,0 +1,28 @@
+name: oslots storage experiment
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'libs/core/tests/unit/storage/test_oslots_rle_experiment.py'
+      - '.github/workflows/oslots-storage-experiment.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rle-proof:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libs/core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install fork source and test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Check lossless semantics and report storage/time trade-offs
+        run: python -m pytest tests/unit/storage/test_oslots_rle_experiment.py -q -s
