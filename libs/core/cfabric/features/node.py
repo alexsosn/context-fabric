@@ -23,6 +23,7 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
 from cfabric.storage.string_pool import StringPool, IntFeatureArray
+from cfabric.storage.sparse_string_pool import SparseStringPool
 from cfabric.utils.helpers import safe_rank_key
 
 if TYPE_CHECKING:
@@ -46,7 +47,7 @@ class NodeFeature:
         self,
         api: Api,
         metaData: dict[str, str],
-        data: dict[int, str | int] | StringPool | IntFeatureArray,
+        data: dict[int, str | int] | StringPool | IntFeatureArray | SparseStringPool,
     ) -> None:
         self.api = api
         self.meta = metaData
@@ -57,7 +58,7 @@ class NodeFeature:
         """
 
         self._data = data
-        self._is_mmap = isinstance(data, (StringPool, IntFeatureArray))
+        self._is_mmap = isinstance(data, (StringPool, IntFeatureArray, SparseStringPool))
         self._cached_data: dict[int, str | int] | None = None  # Cache for materialized dict
 
     @property
@@ -187,12 +188,12 @@ class NodeFeature:
             # Fast path: vectorized frequency counting
             fql.update(self._data.get_frequency_counts())
         elif self._is_mmap:
-            # Mmap with type filtering - need per-node iteration
+            # Iterate only present values: sparse features can have millions of
+            # missing node IDs. A full 1..max_node scan would perform millions
+            # of scalar lookups and make type-restricted freqList unusable.
             fOtype = self.api.F.otype.v
-            max_node = len(self._data)
-            for n in range(1, max_node + 1):
-                val = self.v(n)
-                if val is not None and fOtype(n) in nodeTypes:
+            for n, val in self._data.items():
+                if fOtype(n) in nodeTypes:
                     fql[val] += 1
         elif nodeTypes is None:
             # Dict-backed, no filtering
