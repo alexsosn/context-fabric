@@ -83,8 +83,8 @@ def test_adaptive_compiler_and_fabric_api(tmp_path):
     feature_dir = root / ".cfm" / "1" / "features"
     meta = json.loads((feature_dir / "rare_label_meta.json").read_text())
     assert meta["storage"] == "sparse-string-v1"
-    assert (feature_dir / "rare_label_nodes.npy").exists()
-    assert (feature_dir / "rare_label_codes.npy").exists()
+    assert (feature_dir / ".sparse-string-v1" / "rare_label" / "pool_nodes.npy").exists()
+    assert (feature_dir / ".sparse-string-v1" / "rare_label" / "pool_codes.npy").exists()
     assert not (feature_dir / "rare_label_idx.npy").exists()
 
     api = Fabric(locations=str(root), silent="deep").load("rare_label")
@@ -131,11 +131,26 @@ def test_recompile_switches_backends_without_leaking_stale_arrays(tmp_path):
     output = root / ".cfm" / "1" / "features"
     prefix = output / "rare_label"
     assert Compiler(str(root), experimental_sparse_strings=True).compile()
-    assert prefix.with_name("rare_label_nodes.npy").exists()
+    sparse_prefix = output / ".sparse-string-v1" / "rare_label" / "pool"
+    assert sparse_prefix.with_name("pool_nodes.npy").exists()
     assert Compiler(str(root)).compile()
     assert prefix.with_name("rare_label_idx.npy").exists()
-    assert not prefix.with_name("rare_label_nodes.npy").exists()
-    assert not prefix.with_name("rare_label_codes.npy").exists()
+    assert not sparse_prefix.parent.exists()
     assert Compiler(str(root), experimental_sparse_strings=True).compile()
-    assert not prefix.with_name("rare_label_idx.npy").exists()
-    assert prefix.with_name("rare_label_codes.npy").exists()
+    assert sparse_prefix.with_name("pool_codes.npy").exists()
+    assert json.loads((output / "rare_label_meta.json").read_text())["storage"] == "sparse-string-v1"
+
+
+def test_sparse_artifacts_do_not_collide_with_other_feature_names(tmp_path):
+    fixture = Path(__file__).resolve().parents[2] / "fixtures" / "mini_corpus"
+    root = tmp_path / "mini"
+    shutil.copytree(fixture, root)
+    (root / "demo.tf").write_text("@node\\n@valueType=str\\n\\n1\\tvalue\\n", encoding="utf8")
+    # Old un-namespaced demo_nodes.npy conflicts with the valid integer
+    # feature named demo_nodes.
+    (root / "demo_nodes.tf").write_text("@node\\n@valueType=int\\n\\n1\\t123\\n", encoding="utf8")
+    assert Compiler(str(root), experimental_sparse_strings=True).compile()
+    api = Fabric(locations=str(root), silent="deep").load("demo demo_nodes")
+    assert api.F.demo.v(1) == "value"
+    assert api.F.demo_nodes.v(1) == 123
+    assert api.F.demo.v(2) is None
