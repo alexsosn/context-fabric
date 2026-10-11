@@ -16,8 +16,9 @@ from cfabric.io.compiler import Compiler
 from cfabric.storage.sparse_string_pool import SparseStringPool
 
 
-@pytest.fixture
-def triplicate_apis(tmp_path):
+@pytest.fixture(scope="module")
+def triplicate_apis(tmp_path_factory):
+    tmp_path = tmp_path_factory.mktemp("cfm-search-parity")
     fixture = Path(__file__).resolve().parents[2] / "fixtures" / "mini_corpus"
     roots = [tmp_path / kind / "mini_corpus" for kind in ("source", "dense", "sparse")]
     for root in roots:
@@ -40,6 +41,8 @@ def triplicate_apis(tmp_path):
     apis = (load(source), load(dense), load(sparse))
     assert all(api for api in apis)
     assert isinstance(apis[2].F.rare_tag._data, SparseStringPool)
+    assert apis[0].F.rare_tag.v(4) == ""
+    assert apis[2].F.rare_tag.v(4) == ""
     yield apis
 
 
