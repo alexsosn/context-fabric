@@ -152,8 +152,11 @@ class SparseStringPool:
     def filter_missing_value(self, nodes: Sequence[int] | range) -> np.ndarray:
         # Returning all missing nodes necessarily costs O(max_node) for an
         # all-nodes query, exactly as with the dense backend.
-        query = self._query_nodes(nodes)
-        query = query[(query >= 1) & (query <= self.max_node)]
+        if isinstance(nodes, range) and nodes.start == 1 and nodes.step == 1 and nodes.stop == self.max_node + 1:
+            query = np.arange(1, self.max_node + 1, dtype=np.int64)
+        else:
+            query = self._query_nodes(nodes)
+            query = query[(query >= 1) & (query <= self.max_node)]
         return query[~np.isin(query, self.nodes)]
 
     def get_frequency_counts(self) -> dict[str, int]:
