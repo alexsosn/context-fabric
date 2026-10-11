@@ -26,7 +26,7 @@ def test_roundtrip_and_full_node_space(tmp_path):
     assert pool.get(500) == "βήτα"
     assert dict(pool.items()) == values
     pool.save(str(tmp_path / "lemma"))
-    reread = SparseStringPool.load(str(tmp_path / "lemma"))
+    reread = SparseStringPool.load(str(tmp_path / "lemma"), max_node=1000)
     assert isinstance(reread.nodes, np.memmap)
     assert isinstance(reread.codes, np.memmap)
     assert dict(reread.items()) == values
@@ -64,7 +64,7 @@ def test_sparse_code_widths_and_validation():
 def test_empty_and_out_of_range_selection(tmp_path):
     pool = SparseStringPool.from_dict({}, max_node=5)
     pool.save(str(tmp_path / "empty"))
-    loaded = SparseStringPool.load(str(tmp_path / "empty"))
+    loaded = SparseStringPool.load(str(tmp_path / "empty"), max_node=5)
     assert list(loaded.items()) == []
     assert loaded.get(1) is None
     assert loaded.filter_by_value(range(1, 6), "x").size == 0
