@@ -754,12 +754,18 @@ class Compiler:
             self.experimental_sparse_strings
             and SparseStringPool.is_worth_using(data, self.max_node)
         )
+        # Recompiling into an existing CFM directory must not accumulate
+        # obsolete index arrays from the other representation.
+        prefix = output_dir / feature_name
         if sparse:
+            (output_dir / f'{feature_name}_idx.npy').unlink(missing_ok=True)
             pool = SparseStringPool.from_dict(data, self.max_node)
-            pool.save(str(output_dir / feature_name))
+            pool.save(str(prefix))
         else:
+            for suffix in ('nodes', 'codes'):
+                (output_dir / f'{feature_name}_{suffix}.npy').unlink(missing_ok=True)
             pool = StringPool.from_dict(data, self.max_node)
-            pool.save(str(output_dir / feature_name))
+            pool.save(str(prefix))
 
         # Save metadata. Unknown storage markers must fail closed in loaders.
         meta: dict[str, Any] = {
