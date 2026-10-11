@@ -94,6 +94,29 @@ def test_adaptive_compiler_and_fabric_api(tmp_path):
     assert sorted(api.F.rare_label.s("α")) == [1, 8]
     assert dict(api.F.rare_label.items()) == {1: "α", 8: "α"}
     assert api.F.rare_label.freqList() == (("α", 2),)
+    assert api.F.rare_label.freqList({"word"}) == (("α", 1),)
+    assert api.F.rare_label.freqList({"sentence"}) == (("α", 1),)
+    assert api.F.rare_label.freqList({"phrase"}) == ()
+
+
+def test_sparse_type_filter_frequency_avoids_unpopulated_get(monkeypatch, tmp_path):
+    """Type-restricted frequency must scale with populated rows, not max_node."""
+    fixture = Path(__file__).resolve().parents[2] / "fixtures" / "mini_corpus"
+    root = tmp_path / "mini"
+    shutil.copytree(fixture, root)
+    (root / "rare_label.tf").write_text(
+        "@node\\n@valueType=str\\n\\n1\\tα\\n8\\tα\\n", encoding="utf8"
+    )
+    assert Compiler(str(root), experimental_sparse_strings=True).compile()
+    api = Fabric(locations=str(root), silent="deep").load("rare_label")
+    pool = api.F.rare_label._data
+    assert isinstance(pool, SparseStringPool)
+
+    def explode(_node):
+        raise AssertionError("freqList must iterate populated items, not get every node")
+
+    monkeypatch.setattr(pool, "get", explode)
+    assert api.F.rare_label.freqList({"word"}) == (("α", 1),)
 
 
 def test_default_compilation_unchanged(tmp_path):
