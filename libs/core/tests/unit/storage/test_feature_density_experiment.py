@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import pytest
-from measure_feature_density import measure
+from pathlib import Path
+from runpy import run_path
+
+measure = run_path(str(Path(__file__).with_name('measure_feature_density.py')))['measure']
 
 
 def test_node_feature_implicit_and_explicit_ranges(tmp_path):
