@@ -1,0 +1,40 @@
+name: sparse string storage experiment
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "libs/core/cfabric/storage/sparse_string_pool.py"
+      - "libs/core/cfabric/features/node.py"
+      - "libs/core/cfabric/io/compiler.py"
+      - "libs/core/cfabric/core/fabric.py"
+      - "libs/core/tests/unit/storage/test_sparse_string_pool_experiment.py"
+      - "libs/core/tests/unit/storage/benchmark_sparse_string_real.py"
+      - ".github/workflows/sparse-string-storage-experiment.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sparse-string-proof:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libs/core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install core package with tests
+        run: python -m pip install -e ".[dev]"
+      - name: Verify sparse storage equivalence and opt-in integration
+        run: python -m pytest tests/unit/storage/test_sparse_string_pool_experiment.py -v
+      - name: Download pinned TLHdig-TF 0.4.0 sparse node feature
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 240 \
+            'https://raw.githubusercontent.com/alexsosn/TLHdig-TF/88dc8298547b11e8a954a7bfb07dd3e55aa716ab/tf/0.4.0/docid.tf' \
+            --output "${RUNNER_TEMP}/docid.tf"
+          sha256sum "${RUNNER_TEMP}/docid.tf"
+      - name: Measure real TLHdig docid source
+        run: python tests/unit/storage/benchmark_sparse_string_real.py "${RUNNER_TEMP}/docid.tf" 8285600
