@@ -105,7 +105,7 @@ def test_sparse_type_filter_frequency_avoids_unpopulated_get(monkeypatch, tmp_pa
     root = tmp_path / "mini"
     shutil.copytree(fixture, root)
     (root / "rare_label.tf").write_text(
-        "@node\\n@valueType=str\\n\\n1\\tα\\n8\\tα\\n", encoding="utf8"
+        "@node\n@valueType=str\n\n1\tα\n8\tα\n", encoding="utf8"
     )
     assert Compiler(str(root), experimental_sparse_strings=True).compile()
     api = Fabric(locations=str(root), silent="deep").load("rare_label")
