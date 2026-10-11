@@ -60,6 +60,44 @@ class RunLengthCSR:
         return self.indptr.nbytes + self.bounds.nbytes
 
 
+class AdaptiveRunCSR:
+    """Per-row CSR or run storage, with one uint8 mode per row."""
+
+    def __init__(self, indptr, data, modes):
+        self.indptr, self.data, self.modes = indptr, data, modes
+
+    @classmethod
+    def from_sequences(cls, rows):
+        indptr = np.zeros(len(rows) + 1, dtype=np.uint32)
+        modes = np.zeros(len(rows), dtype=np.uint8)
+        words = []
+        for i, row in enumerate(rows):
+            encoded = RunLengthCSR.from_sequences([row]).bounds
+            if len(encoded) < len(row):
+                modes[i] = 1
+                words.extend(encoded)
+            else:
+                words.extend(row)
+            indptr[i + 1] = len(words)
+        return cls(indptr, np.asarray(words, dtype=np.uint32), modes)
+
+    def get_as_tuple(self, i):
+        if not 0 <= i < len(self.modes):
+            raise IndexError(i)
+        a, b = int(self.indptr[i]), int(self.indptr[i + 1])
+        if not self.modes[i]:
+            return tuple(self.data[a:b])
+        return tuple(
+            slot
+            for j in range(a, b, 2)
+            for slot in range(int(self.data[j]), int(self.data[j + 1]) + 1)
+        )
+
+    @property
+    def nbytes(self):
+        return self.indptr.nbytes + self.data.nbytes + self.modes.nbytes
+
+
 def make_rows(shape, count=6000, width=64):
     rows = []
     for i in range(count):
@@ -116,6 +154,15 @@ def test_reject_noncanonical_or_out_of_range(rows):
         RunLengthCSR.from_sequences(rows)
 
 
+@pytest.mark.parametrize("shape", ["contiguous", "mixed", "fragmented"])
+def test_adaptive_lossless_and_storage_bound(shape):
+    rows = make_rows(shape, 64, 32)
+    csr, rle, csr_bytes, rle_bytes = compare(rows)
+    adaptive = AdaptiveRunCSR.from_sequences(rows)
+    assert [adaptive.get_as_tuple(i) for i in range(len(rows))] == rows
+    assert adaptive.nbytes <= min(csr_bytes, rle_bytes) + len(rows)
+
+
 def test_repository_fixture():
     root = Path(__file__).resolve().parents[3]
     tf = root / "tests" / "fixtures" / "mini_corpus" / "oslots.tf"
@@ -135,15 +182,18 @@ def test_repository_fixture():
 def test_synthetic_benchmark(shape):
     rows = make_rows(shape)
     baseline, candidate, csr_bytes, run_bytes = compare(rows)
+    adaptive = AdaptiveRunCSR.from_sequences(rows)
     probes = [random.Random(20261011 + j).randrange(len(rows)) for j in range(1000)]
     csr_time = measure_lookup(baseline.get_as_tuple, probes)
     run_time = measure_lookup(candidate.get_as_tuple, probes)
+    adaptive_time = measure_lookup(adaptive.get_as_tuple, probes)
     saving = (1 - run_bytes / csr_bytes) * 100
     print(
         f"OSLOTS_BENCH shape={shape} nodes={len(rows)} slots={sum(map(len, rows))}"
         f" runs={len(candidate.bounds) // 2} csr_bytes={csr_bytes}"
-        f" run_bytes={run_bytes} saving_pct={saving:.2f}"
-        f" csr_us_per_row={csr_time:.3f} run_us_per_row={run_time:.3f}",
+        f" run_bytes={run_bytes} adaptive_bytes={adaptive.nbytes} saving_pct={saving:.2f}"
+        f" csr_us_per_row={csr_time:.3f} run_us_per_row={run_time:.3f}"
+        f" adaptive_us_per_row={adaptive_time:.3f}",
         flush=True,
     )
     if shape == "fragmented":
