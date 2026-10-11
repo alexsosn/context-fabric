@@ -29,6 +29,7 @@ from cfabric.core.config import (
 )
 from cfabric.storage.csr import CSRArray, CSRArrayWithValues
 from cfabric.storage.string_pool import StringPool, IntFeatureArray
+from cfabric.storage.sparse_string_pool import SparseStringPool
 from cfabric.utils.files import dirMake, fileExists, fileOpen
 from cfabric.utils.helpers import setFromSpec, valueFromTf, makeInverse, makeInverseVal
 import cfabric.precompute.prepare as prepare
@@ -92,8 +93,9 @@ class Compiler:
         Path to directory containing .tf source files
     """
 
-    def __init__(self, source_dir: str) -> None:
+    def __init__(self, source_dir: str, *, experimental_sparse_strings: bool = False) -> None:
         self.source_dir: Path = Path(source_dir)
+        self.experimental_sparse_strings = experimental_sparse_strings
         self.info = logger.info
         self.error = logger.error
         self.warning = logger.warning
@@ -748,17 +750,27 @@ class Compiler:
         metadata: dict[str, str],
     ) -> None:
         """Compile a string-valued node feature."""
-        str_pool = StringPool.from_dict(data, self.max_node)
-        str_pool.save(str(output_dir / feature_name))
+        sparse = (
+            self.experimental_sparse_strings
+            and SparseStringPool.is_worth_using(data, self.max_node)
+        )
+        if sparse:
+            pool = SparseStringPool.from_dict(data, self.max_node)
+            pool.save(str(output_dir / feature_name))
+        else:
+            pool = StringPool.from_dict(data, self.max_node)
+            pool.save(str(output_dir / feature_name))
 
-        # Save metadata
+        # Save metadata. Unknown storage markers must fail closed in loaders.
         meta: dict[str, Any] = {
             'name': feature_name,
             'kind': 'node',
             'value_type': 'str',
-            'unique_values': len(str_pool.strings),
-            **{k: v for k, v in metadata.items() if k != 'valueType'}
+            'unique_values': len(pool.strings),
+            **{k: v for k, v in metadata.items() if k != 'valueType' and k != 'storage'},
         }
+        if sparse:
+            meta['storage'] = 'sparse-string-v1'
         with open(output_dir / f'{feature_name}_meta.json', 'w') as f:
             json.dump(meta, f, indent=1)
 
