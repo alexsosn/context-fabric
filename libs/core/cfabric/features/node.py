@@ -188,12 +188,12 @@ class NodeFeature:
             # Fast path: vectorized frequency counting
             fql.update(self._data.get_frequency_counts())
         elif self._is_mmap:
-            # Mmap with type filtering - need per-node iteration
+            # Iterate only present values: sparse features can have millions of
+            # missing node IDs. A full 1..max_node scan would perform millions
+            # of scalar lookups and make type-restricted freqList unusable.
             fOtype = self.api.F.otype.v
-            max_node = len(self._data)
-            for n in range(1, max_node + 1):
-                val = self.v(n)
-                if val is not None and fOtype(n) in nodeTypes:
+            for n, val in self._data.items():
+                if fOtype(n) in nodeTypes:
                     fql[val] += 1
         elif nodeTypes is None:
             # Dict-backed, no filtering
