@@ -18,7 +18,7 @@ from test_oslots_rle_experiment import RunLengthCSR, AdaptiveRunCSR, measure_loo
 def scan(path: Path, sample_size: int = 2048) -> None:
     rng = random.Random(20261011)
     sample = []
-    seen_sources = set()
+    last_source = None
     count = 0
     total_slots = 0
     total_runs = 0
@@ -59,11 +59,14 @@ def scan(path: Path, sample_size: int = 2048) -> None:
                 b != a + 1 for a, b in zip(targets, targets[1:])
             )
             for node in sources:
-                if node in seen_sources:
-                    raise ValueError(f"duplicate source node {node} at {line_number}")
-                seen_sources.add(node)
-                min_source = node if min_source is None else min(min_source, node)
-                max_source = max(max_source, node)
+                if last_source is not None and node != last_source + 1:
+                    raise ValueError(
+                        f"non-contiguous or unordered source {node} after {last_source}"
+                        f" at line {line_number}"
+                    )
+                last_source = node
+                min_source = node if min_source is None else min_source
+                max_source = node
                 count += 1
                 total_slots += len(targets)
                 total_runs += runs
