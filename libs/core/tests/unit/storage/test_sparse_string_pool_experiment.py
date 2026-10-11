@@ -154,3 +154,33 @@ def test_sparse_artifacts_do_not_collide_with_other_feature_names(tmp_path):
     assert api.F.demo.v(1) == "value"
     assert api.F.demo_nodes.v(1) == 123
     assert api.F.demo.v(2) is None
+
+
+@pytest.mark.parametrize(
+    ("nodes", "codes", "max_node"),
+    [
+        ([2, 1], [0, 0], 4),
+        ([1, 1], [0, 0], 4),
+        ([0], [0], 4),
+        ([5], [0], 4),
+        ([1], [1], 4),
+    ],
+)
+def test_corrupt_sparse_indexes_rejected(nodes, codes, max_node):
+    with pytest.raises(ValueError):
+        SparseStringPool(
+            np.array(["one"], dtype=object),
+            np.asarray(nodes, dtype=np.uint32),
+            np.asarray(codes, dtype=np.uint8),
+            max_node,
+        )
+
+
+def test_non_integer_sparse_indexes_rejected():
+    with pytest.raises(ValueError):
+        SparseStringPool(
+            np.array(["one"], dtype=object),
+            np.array([1.5], dtype=np.float64),
+            np.array([0], dtype=np.uint8),
+            10,
+        )
