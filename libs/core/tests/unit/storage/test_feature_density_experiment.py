@@ -36,14 +36,14 @@ def test_numeric_blank_is_missing_and_zero_is_present(tmp_path):
 
 def test_duplicates_fail_closed(tmp_path):
     path = tmp_path / "dup.tf"
-    path.write_text("@node\\n\\n1\\tA\\n1\\tB\\n", encoding="utf-8")
+    path.write_text("@node\n\n1\tA\n1\tB\n", encoding="utf-8")
     with pytest.raises(ValueError, match="duplicate feature node"):
         measure(path, max_node=10)
 
 
 def test_unordered_distinct_nodes_are_legal(tmp_path):
     path = tmp_path / "unsorted.tf"
-    path.write_text("@node\\n\\n3\\tA\\n1\\tB\\n2\\tC\\n", encoding="utf-8")
+    path.write_text("@node\n\n3\tA\n1\tB\n2\tC\n", encoding="utf-8")
     r = measure(path, max_node=10)
     assert r["populated"] == 3
     assert r["unique_encoded_values"] == 3
