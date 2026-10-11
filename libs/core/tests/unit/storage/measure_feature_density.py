@@ -22,7 +22,7 @@ def measure(path: Path, max_node: int) -> dict[str, int | float | str]:
     feature_type = None
     implicit_node = 1
     populated = 0
-    last_node = 0
+    seen_nodes = bytearray((max_node + 7) // 8)
     distinct: set[str] = set()
     with path.open(encoding="utf-8") as src:
         for line_number, raw in enumerate(src, 1):
@@ -42,8 +42,8 @@ def measure(path: Path, max_node: int) -> dict[str, int | float | str]:
                 continue
             fields = line.split("\t")
             if len(fields) == 1:
+                nodes = (implicit_node,)
                 n_nodes = 1
-                first_seen = implicit_node
                 max_seen = implicit_node
                 raw_value = fields[0]
             elif len(fields) == 2:
@@ -51,23 +51,26 @@ def measure(path: Path, max_node: int) -> dict[str, int | float | str]:
                 if not nodes:
                     raise ValueError(f"{path}:{line_number}: empty node spec")
                 n_nodes = len(nodes)
-                first_seen = min(nodes)
                 max_seen = max(nodes)
                 raw_value = fields[1]
             else:
                 raise ValueError(f"{path}:{line_number}: unexpected fields")
-            if first_seen <= last_node:
-                raise ValueError(
-                    f"{path}:{line_number}: duplicate/unordered feature node "
-                    f"{first_seen} after {last_node}"
-                )
-            last_node = max_seen
             implicit_node = max_seen + 1
             if max_seen > max_node:
                 raise ValueError(f"{path}:{line_number}: node {max_seen} > {max_node}")
             # Numeric blank => omitted; string empty => explicitly present.
             if metadata.get("valueType", "str") == "int" and raw_value == "":
                 continue
+            # TF node features need not be sorted. Track observed assignment IDs
+            # in a fixed-size bitmap instead of retaining a large Python set.
+            for node in nodes:
+                if node < 1:
+                    raise ValueError(f"{path}:{line_number}: node {node} < 1")
+                index = node - 1
+                b, bit = index // 8, 1 << (index % 8)
+                if seen_nodes[b] & bit:
+                    raise ValueError(f"{path}:{line_number}: duplicate feature node {node}")
+                seen_nodes[b] |= bit
             populated += n_nodes
             distinct.add(raw_value)
     dense_bytes = 4 * max_node
