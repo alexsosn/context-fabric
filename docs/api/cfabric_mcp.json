@@ -686,7 +686,7 @@
       "path": "",
       "docstring": {
         "summary": "Corpus management for MCP server.",
-        "description": "Corpus management for MCP server.\n\nHandles loading and caching of corpora for the MCP server.\nSupports multiple simultaneous corpora.",
+        "description": "Corpus management for MCP server.\n\nHandles loading and caching of corpora for the MCP server.\nSupports multiple simultaneous corpora and ordered multi-location corpora.",
         "parsed": []
       },
       "classes": {
@@ -696,7 +696,7 @@
           "path": "",
           "docstring": {
             "summary": "Manages loaded corpora for the MCP server.",
-            "description": "Manages loaded corpora for the MCP server.\n\nSupports loading multiple corpora and switching between them.",
+            "description": "Manages loaded corpora for the MCP server.\n\nSupports loading multiple corpora and switching between them. One logical\ncorpus may itself be composed from multiple ordered Text-Fabric locations.",
             "parsed": []
           },
           "bases": [],
@@ -832,10 +832,10 @@
             "load": {
               "name": "load",
               "kind": "function",
-              "signature": "(self, path: str, name: str | None = None, features: str | list[str] | None = None)",
+              "signature": "(self, path: CorpusLocations, name: str | None = None, features: str | list[str] | None = None)",
               "docstring": {
-                "summary": "Load a corpus.",
-                "description": "Load a corpus.\n\nParameters\n----------\npath: str\n    Path to the corpus directory\nname: str | None\n    Name for the corpus (defaults to directory name)\nfeatures: str | list[str] | None\n    Features to load (defaults to all)\n\nReturns\n-------\nCorpusInfo\n    Information about the loaded corpus",
+                "summary": "Load a corpus from one path or multiple ordered locations.",
+                "description": "Load a corpus from one path or multiple ordered locations.\n\nParameters\n----------\npath: str | os.PathLike | iterable of path-like values\n    Corpus location or ordered corpus locations. Later locations retain\n    core Context-Fabric's normal feature-precedence semantics.\nname: str | None\n    Name for the corpus (defaults to the first/base directory name)\nfeatures: str | list[str] | None\n    Features to load (defaults to all)\n\nReturns\n-------\nCorpusInfo\n    Information about the loaded corpus",
                 "parsed": []
               },
               "parameters": [
@@ -847,7 +847,7 @@
                 },
                 {
                   "name": "path",
-                  "type": "str",
+                  "type": "CorpusLocations",
                   "default": null,
                   "kind": "positional or keyword"
                 },
@@ -964,7 +964,30 @@
           }
         }
       },
-      "functions": {},
+      "functions": {
+        "_normalize_locations": {
+          "name": "_normalize_locations",
+          "kind": "function",
+          "signature": "(path: CorpusLocations)",
+          "docstring": {
+            "summary": "Resolve and validate one or more ordered corpus locations.",
+            "description": "Resolve and validate one or more ordered corpus locations.",
+            "parsed": []
+          },
+          "parameters": [
+            {
+              "name": "path",
+              "type": "CorpusLocations",
+              "default": null,
+              "kind": "positional or keyword"
+            }
+          ],
+          "returns": {
+            "type": "tuple[(Path, ...)]"
+          },
+          "decorators": []
+        }
+      },
       "modules": {},
       "aliases": {
         "Api": {
@@ -975,9 +998,17 @@
           "name": "CorpusInfo",
           "target": "cfabric.results.CorpusInfo"
         },
+        "Iterable": {
+          "name": "Iterable",
+          "target": "collections.abc.Iterable"
+        },
         "Path": {
           "name": "Path",
           "target": "pathlib.Path"
+        },
+        "PathLike": {
+          "name": "PathLike",
+          "target": "os.PathLike"
         },
         "TYPE_CHECKING": {
           "name": "TYPE_CHECKING",
