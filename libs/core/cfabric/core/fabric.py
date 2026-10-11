@@ -62,6 +62,7 @@ from cfabric.storage.mmap_manager import MmapManager
 from cfabric.io.compiler import Compiler, compile_corpus
 from cfabric.storage.csr import CSRArray
 from cfabric.storage.string_pool import StringPool, IntFeatureArray
+from cfabric.storage.sparse_string_pool import SparseStringPool
 from cfabric.features.node import NodeFeature
 from cfabric.features.edge import EdgeFeature
 from cfabric.features.warp.otype import OtypeFeature
@@ -1474,14 +1475,24 @@ class Fabric:
             meta = {}
 
         value_type = meta.get('value_type', 'str')
+        storage = meta.get('storage')
+        if storage not in (None, 'sparse-string-v1'):
+            raise ValueError(f"Unsupported CFM node feature storage {storage!r} for {fname!r}")
+        if storage == 'sparse-string-v1' and value_type != 'str':
+            raise ValueError(f"Sparse string storage declared for non-string feature {fname!r}")
 
         if value_type == 'int':
             # Load integer feature
             int_arr = IntFeatureArray.load(str(features_dir / f'{fname}.npy'), mmap_mode='r')
             feature = NodeFeature(api, meta, int_arr)
         else:
-            # Load string feature
-            str_pool = mmap_mgr.get_string_pool(fname)
+            # Older dense string pools remain unchanged by default.
+            if storage == 'sparse-string-v1':
+                str_pool = SparseStringPool.load(
+                    str(features_dir / fname), max_node=mmap_mgr.max_node, mmap_mode='r'
+                )
+            else:
+                str_pool = mmap_mgr.get_string_pool(fname)
             feature = NodeFeature(api, meta, str_pool)
 
         setattr(api.F, fname, feature)
