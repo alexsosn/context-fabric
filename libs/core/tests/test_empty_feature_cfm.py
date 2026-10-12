@@ -147,3 +147,35 @@ def test_changed_source_after_raw_load_cannot_compile_stale_precomputed_data(
     compiled = fresh.loadAll(silent="deep")
     assert getattr(fresh, "_loaded_from_cfm", False)
     assert compiled.F.form.v(1) == "omega", "stale loaded dict was signed as fresh source"
+
+
+def test_compiled_int_features_preserve_minus_one_and_int32_min(tmp_path: Path) -> None:
+    """RED: historic BCE -1 is data, not a missing-value sentinel."""
+    _tiny_warp(tmp_path)
+    _write(tmp_path, "year", "@node\n@valueType=int\n\n1\t-1\n2\t-2147483648\n3\t0\n")
+    _write(tmp_path, "sparse_year", "@node\n@valueType=int\n\n1\t-1\n")
+
+    raw = Fabric(locations=str(tmp_path), silent="deep").loadAll(silent="deep")
+    assert raw.F.year.v(1) == -1
+    assert raw.F.year.v(2) == -(2**31)
+    assert raw.F.sparse_year.v(2) is None
+
+    compiler = Fabric(locations=str(tmp_path), silent="deep")
+    assert compiler.compile(silent="deep")
+    fresh = Fabric(locations=str(tmp_path), silent="deep")
+    loaded = fresh.loadAll(silent="deep")
+    assert fresh._loaded_from_cfm
+    assert loaded.F.year.v(1) == -1
+    assert loaded.F.year.v(2) == -(2**31)
+    assert loaded.F.year.v(3) == 0
+    assert dict(loaded.F.year.items()) == {1: -1, 2: -(2**31), 3: 0}
+    assert loaded.F.sparse_year.v(1) == -1
+    assert loaded.F.sparse_year.v(2) is None
+    assert dict(loaded.F.sparse_year.items()) == {1: -1}
+    assert loaded.F.sparse_year.s(-1) == (1,)
+    assert loaded.F.sparse_year.s(0) == ()
+
+    # Cached output must advertise an explicit per-feature missing-value scheme.
+    meta = next((tmp_path / ".cfm").glob("*/features/year_meta.json"))
+    year_meta = json.loads(meta.read_text(encoding="utf-8"))
+    assert year_meta["missing_sentinel"] not in {-1, -(2**31), 0}
