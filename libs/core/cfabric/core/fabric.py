@@ -294,6 +294,13 @@ class Fabric:
         """
 
         self._makeIndex()
+        # Snapshot TF files before any raw loading. A later compile must not
+        # sign stale precomputed dicts as if they represented modified sources.
+        self._source_stats_at_init = (
+            source_tf_stats(Path(self.locations[0]) / self.modules[0])
+            if self._cfm_topology_is_single_source()
+            else None
+        )
 
     def load(
         self,
@@ -1158,8 +1165,17 @@ class Fabric:
             else self.locations[-1]
         )
 
-        # Gather precomputed data if available
+        # Gather precomputed data only when the original source files have
+        # not changed since this Fabric instance was constructed. Otherwise
+        # loaded Python dicts may describe an older source than the new CFM
+        # cache signature; use a fresh disk parse in that case.
         precomputed = self._gather_precomputed_data()
+        if (
+            self._source_stats_at_init is None
+            or source_tf_stats(Path(source_dir)) != self._source_stats_at_init
+        ):
+            logger.warning("TF source changed since initialization; compiling from disk")
+            precomputed = None
 
         compiler = Compiler(source_dir)
         result = compiler.compile(output_dir, precomputed=precomputed)
