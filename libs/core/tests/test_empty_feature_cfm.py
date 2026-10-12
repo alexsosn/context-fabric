@@ -174,6 +174,12 @@ def test_compiled_int_features_preserve_minus_one_and_int32_min(tmp_path: Path) 
     assert dict(loaded.F.sparse_year.items()) == {1: -1}
     assert loaded.F.sparse_year.s(-1) == (1,)
     assert loaded.F.sparse_year.s(0) == ()
+    storage = loaded.F.sparse_year._data
+    assert list(storage.filter_by_value([1, 2, 3], -1)) == [1]
+    assert list(storage.filter_by_values([1, 2, 3], {-1, 0})) == [1]
+    assert list(storage.filter_has_value([1, 2, 3])) == [1]
+    assert list(storage.filter_missing_value([1, 2, 3])) == [2, 3]
+    assert list(storage.filter_less_than([1, 2, 3], 0)) == [1]
 
     # Cached output must advertise an explicit per-feature missing-value scheme.
     meta = next((tmp_path / ".cfm").glob("*/features/year_meta.json"))
