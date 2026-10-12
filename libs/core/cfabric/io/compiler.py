@@ -699,10 +699,9 @@ class Compiler:
         """Compile all node features."""
         features_dir = output_dir / 'features'
 
+        # An all-empty feature is still a valid native TF feature. The CFM
+        # manifest advertises it, so its empty arrays MUST be serialized.
         for feature_name, data in self._node_features.items():
-            if not data:
-                continue
-
             metadata = self._feature_meta.get(feature_name, {})
             value_type = metadata.get('valueType', 'str')
 
@@ -766,10 +765,8 @@ class Compiler:
         """Compile all edge features."""
         edges_dir = output_dir / 'edges'
 
+        # Empty edge features must remain loadable as empty CSR arrays.
         for feature_name, (data, has_values) in self._edge_features.items():
-            if not data:
-                continue
-
             metadata = self._feature_meta.get(feature_name, {})
 
             self.info(f"  Compiling {feature_name} (edge, values={has_values})...")
