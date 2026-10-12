@@ -124,3 +124,26 @@ def test_legacy_compiled_cache_without_source_snapshot_is_not_trusted(
     fresh = Fabric(locations=str(tmp_path), silent="deep")
     assert fresh.loadAll(silent="deep").F.form.v(1) == "alpha"
     assert not getattr(fresh, "_loaded_from_cfm", False)
+
+
+def test_changed_source_after_raw_load_cannot_compile_stale_precomputed_data(
+    tmp_path: Path,
+) -> None:
+    """RED: cached Python feature dicts must never be stamped as newer source data."""
+    import os
+
+    _tiny_warp(tmp_path)
+    original = Fabric(locations=str(tmp_path), silent="deep")
+    raw = original.loadAll(silent="deep")
+    assert raw.F.form.v(1) == "alpha"
+
+    source = tmp_path / "form.tf"
+    source.write_text(source.read_text(encoding="utf-8").replace("alpha", "omega"), encoding="utf-8")
+    stat = source.stat()
+    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns + 10_000_000_000))
+    assert original.compile(silent="deep")
+
+    fresh = Fabric(locations=str(tmp_path), silent="deep")
+    compiled = fresh.loadAll(silent="deep")
+    assert getattr(fresh, "_loaded_from_cfm", False)
+    assert compiled.F.form.v(1) == "omega", "stale loaded dict was signed as fresh source"
