@@ -1115,9 +1115,11 @@ class Fabric:
                 except (OSError, ValueError):
                     logger.warning("Cannot validate CFM source snapshot at %s", cfm_path)
                     continue
-                if not isinstance(manifest, dict) or manifest.get(
-                    'source_tf_stats'
-                ) != observed:
+                if (
+                    not isinstance(manifest, dict)
+                    or manifest.get('source_tf_stats') != observed
+                    or manifest.get('int_missing_policy') != 'dynamic-1'
+                ):
                     logger.warning(
                         "CFM snapshot is absent/stale at %s; using raw TF",
                         cfm_path,
@@ -1519,7 +1521,11 @@ class Fabric:
 
         if value_type == 'int':
             # Load integer feature
-            int_arr = IntFeatureArray.load(str(features_dir / f'{fname}.npy'), mmap_mode='r')
+            int_arr = IntFeatureArray.load(
+                str(features_dir / f'{fname}.npy'),
+                mmap_mode='r',
+                missing=int(meta.get('missing_sentinel', -1)),
+            )
             feature = NodeFeature(api, meta, int_arr)
         else:
             # Load string feature
