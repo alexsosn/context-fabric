@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-12T16:45:45.297638+00:00",
+  "generated_at": "2026-10-12T17:21:18.849513+00:00",
   "packages": {
     "cfabric": {
       "name": "cfabric",
@@ -1633,6 +1633,100 @@
                     }
                   },
                   "attributes": {
+                    "_source_stats_at_init": {
+                      "name": "_source_stats_at_init",
+                      "type": "",
+                      "docstring": {
+                        "summary": "",
+                        "description": "",
+                        "sections": {}
+                      },
+                      "value": {
+                        "body": {
+                          "arguments": [
+                            {
+                              "cls": "ExprBinOp",
+                              "left": {
+                                "arguments": [
+                                  {
+                                    "cls": "ExprSubscript",
+                                    "left": {
+                                      "cls": "ExprAttribute",
+                                      "values": [
+                                        {
+                                          "cls": "ExprName",
+                                          "member": null,
+                                          "name": "self"
+                                        },
+                                        {
+                                          "cls": "ExprName",
+                                          "member": null,
+                                          "name": "locations"
+                                        }
+                                      ]
+                                    },
+                                    "slice": "0"
+                                  }
+                                ],
+                                "cls": "ExprCall",
+                                "function": {
+                                  "cls": "ExprName",
+                                  "member": null,
+                                  "name": "Path"
+                                }
+                              },
+                              "operator": "/",
+                              "right": {
+                                "cls": "ExprSubscript",
+                                "left": {
+                                  "cls": "ExprAttribute",
+                                  "values": [
+                                    {
+                                      "cls": "ExprName",
+                                      "member": null,
+                                      "name": "self"
+                                    },
+                                    {
+                                      "cls": "ExprName",
+                                      "member": null,
+                                      "name": "modules"
+                                    }
+                                  ]
+                                },
+                                "slice": "0"
+                              }
+                            }
+                          ],
+                          "cls": "ExprCall",
+                          "function": {
+                            "cls": "ExprName",
+                            "member": null,
+                            "name": "source_tf_stats"
+                          }
+                        },
+                        "cls": "ExprIfExp",
+                        "orelse": "None",
+                        "test": {
+                          "arguments": [],
+                          "cls": "ExprCall",
+                          "function": {
+                            "cls": "ExprAttribute",
+                            "values": [
+                              {
+                                "cls": "ExprName",
+                                "member": null,
+                                "name": "self"
+                              },
+                              {
+                                "cls": "ExprName",
+                                "member": null,
+                                "name": "_cfm_topology_is_single_source"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
                     "_withGc": {
                       "name": "_withGc",
                       "type": "",
@@ -2076,6 +2170,10 @@
                   "name": "itemize",
                   "target": "cfabric.utils.helpers.itemize"
                 },
+                "json": {
+                  "name": "json",
+                  "target": "json"
+                },
                 "levDown": {
                   "name": "levDown",
                   "target": "cfabric.precompute.prepare.levDown"
@@ -2135,6 +2233,10 @@
                 "silentConvert": {
                   "name": "silentConvert",
                   "target": "cfabric.utils.logging.silentConvert"
+                },
+                "source_tf_stats": {
+                  "name": "source_tf_stats",
+                  "target": "cfabric.io.compiler.source_tf_stats"
                 },
                 "splitExt": {
                   "name": "splitExt",
@@ -6887,8 +6989,8 @@
                       "kind": "function",
                       "signature": "(self, output_dir: Path)",
                       "docstring": {
-                        "summary": "Write corpus metadata to meta.json.",
-                        "description": "Write corpus metadata to meta.json.",
+                        "summary": "Write corpus metadata to meta.json only for a stable TF snapshot.",
+                        "description": "Write corpus metadata to meta.json only for a stable TF snapshot.",
                         "parsed": []
                       },
                       "parameters": [
@@ -7105,6 +7207,20 @@
                         "sections": {}
                       },
                       "value": "None"
+                    },
+                    "_source_tf_stats": {
+                      "name": "_source_tf_stats",
+                      "type": "dict[(str, list[int])]",
+                      "docstring": {
+                        "summary": "",
+                        "description": "",
+                        "sections": {}
+                      },
+                      "value": {
+                        "cls": "ExprDict",
+                        "keys": [],
+                        "values": []
+                      }
                     },
                     "error": {
                       "name": "error",
@@ -7327,6 +7443,28 @@
                   ],
                   "returns": {
                     "type": "bool"
+                  },
+                  "decorators": []
+                },
+                "source_tf_stats": {
+                  "name": "source_tf_stats",
+                  "kind": "function",
+                  "signature": "(source: Path)",
+                  "docstring": {
+                    "summary": "Cheap source inventory for cache freshness (size and nanosecond mtime).",
+                    "description": "Cheap source inventory for cache freshness (size and nanosecond mtime).\n\nAvoid rehashing potentially multi-GB .tf inputs on every mmap open.\nThis detects ordinary changes, not deliberate timestamp spoofing.",
+                    "parsed": []
+                  },
+                  "parameters": [
+                    {
+                      "name": "source",
+                      "type": "Path",
+                      "default": null,
+                      "kind": "positional or keyword"
+                    }
+                  ],
+                  "returns": {
+                    "type": "dict[(str, list[int])]"
                   },
                   "decorators": []
                 }
