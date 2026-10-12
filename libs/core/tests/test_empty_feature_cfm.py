@@ -104,11 +104,10 @@ def test_compiled_cache_rejects_new_and_removed_feature_files(tmp_path: Path) ->
     assert api.F.gloss.v(1) == "new"
 
     (tmp_path / "gloss.tf").unlink()
-    (tmp_path / "form.tf").unlink()
     removed = Fabric(locations=str(tmp_path), silent="deep")
     api = removed.loadAll(silent="deep")
     assert not getattr(removed, "_loaded_from_cfm", False)
-    assert "form" not in api.Fall(warp=False)
+    assert "gloss" not in api.Fall(warp=False)
 
 
 def test_legacy_compiled_cache_without_source_snapshot_is_not_trusted(
