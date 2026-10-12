@@ -738,13 +738,10 @@ class Compiler:
         metadata: dict[str, str],
     ) -> None:
         """Compile an integer-valued node feature."""
-        # Check for sentinel collision (-1 is used for missing values)
-        _check_sentinel_collision(
-            data.values(), IntFeatureArray.MISSING,
-            feature_name, 'node'
-        )
-
-        int_arr = IntFeatureArray.from_dict(data, self.max_node)
+        # Legitimate negative-one values (e.g. BCE years) must not collide
+        # with missingness. Select a free int32 sentinel for each feature.
+        missing = IntFeatureArray.select_missing(data.values())
+        int_arr = IntFeatureArray.from_dict(data, self.max_node, missing=missing)
         int_arr.save(str(output_dir / f'{feature_name}.npy'))
 
         # Save metadata
@@ -752,6 +749,7 @@ class Compiler:
             'name': feature_name,
             'kind': 'node',
             'value_type': 'int',
+            'missing_sentinel': missing,
             **{k: v for k, v in metadata.items() if k != 'valueType'}
         }
         with open(output_dir / f'{feature_name}_meta.json', 'w') as f:
@@ -931,6 +929,7 @@ class Compiler:
             'cfm_version': CFM_VERSION,
             'source': str(self.source_dir.name),
             'source_tf_stats': self._source_tf_stats,
+            'int_missing_policy': 'dynamic-1',
             'max_slot': self.max_slot,
             'max_node': self.max_node,
             'slot_type': self.slot_type,
