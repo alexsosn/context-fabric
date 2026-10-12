@@ -21,7 +21,9 @@ def test_empty_declared_features_are_materialized_and_loadable(tmp_path: Path) -
     _write(tmp_path, "otext", "@config\n@fmt:text-orig-full={form}\n\n")
     _write(tmp_path, "form", "@node\n@valueType=str\n\n1\talpha\n2\tbeta\n")
     _write(tmp_path, "translation_after", "@node\n@valueType=str\n\n")
+    _write(tmp_path, "empty_int", "@node\n@valueType=int\n\n")
     _write(tmp_path, "zero_edge", "@edge\n\n")
+    _write(tmp_path, "zero_valued_edge", "@edge\n@edgeValues\n@valueType=int\n\n")
 
     native = Fabric(locations=str(tmp_path), silent="deep")
     raw = native.loadAll(silent="deep")
@@ -29,17 +31,23 @@ def test_empty_declared_features_are_materialized_and_loadable(tmp_path: Path) -
     assert raw.F.form.v(1) == "alpha"
     assert raw.F.translation_after.v(1) is None
     assert tuple(raw.E.zero_edge.f(3)) == ()
+    assert raw.F.empty_int.v(1) is None
+    assert tuple(raw.E.zero_valued_edge.f(3)) == ()
     assert native.compile(silent="deep")
 
     meta_files = list((tmp_path / ".cfm").glob("*/meta.json"))
     assert len(meta_files) == 1
     meta = json.loads(meta_files[0].read_text(encoding="utf-8"))
     assert "translation_after" in meta["features"]["node"]
+    assert "empty_int" in meta["features"]["node"]
     assert "zero_edge" in meta["features"]["edge"]
+    assert "zero_valued_edge" in meta["features"]["edge"]
     root = meta_files[0].parent
     assert (root / "features/translation_after_strings.npy").is_file()
     assert (root / "features/translation_after_idx.npy").is_file()
     assert (root / "edges/zero_edge_indptr.npy").is_file()
+    assert (root / "features/empty_int.npy").is_file()
+    assert (root / "edges/zero_valued_edge_indptr.npy").is_file()
 
     fresh = Fabric(locations=str(tmp_path), silent="deep")
     loaded = fresh.loadAll(silent="deep")
@@ -49,3 +57,5 @@ def test_empty_declared_features_are_materialized_and_loadable(tmp_path: Path) -
     assert loaded.F.form.v(1) == "alpha"
     assert loaded.F.translation_after.v(1) is None
     assert tuple(loaded.E.zero_edge.f(3)) == ()
+    assert loaded.F.empty_int.v(1) is None
+    assert tuple(loaded.E.zero_valued_edge.f(3)) == ()
