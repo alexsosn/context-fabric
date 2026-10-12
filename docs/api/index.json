@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-12T17:21:18.849513+00:00",
+  "generated_at": "2026-10-12T17:30:02.769843+00:00",
   "packages": {
     "cfabric": {
       "name": "cfabric",
@@ -16333,7 +16333,7 @@
                   "path": "",
                   "docstring": {
                     "summary": "Integer feature storage.",
-                    "description": "Integer feature storage.\n\nDense array with sentinel for missing values.\n\nAttributes\n----------\nvalues : np.ndarray\n    Array of integer values (dtype=int32)\n    MISSING (-1) indicates no value",
+                    "description": "Integer feature storage.\n\nDense array with sentinel for missing values.\n\nAttributes\n----------\nvalues : np.ndarray\n    Array of integer values (dtype=int32)\n    A per-feature missing sentinel indicates no value",
                     "parsed": []
                   },
                   "bases": [],
@@ -16369,7 +16369,7 @@
                     "__init__": {
                       "name": "__init__",
                       "kind": "function",
-                      "signature": "(self, values: NDArray[])",
+                      "signature": "(self, values: NDArray[], missing: int = {'cls': 'ExprUnaryOp', 'operator': '-', 'value': '1'})",
                       "docstring": {
                         "summary": "Initialize an IntFeatureArray.",
                         "description": "Initialize an IntFeatureArray.\n\nParameters\n----------\nvalues : np.ndarray\n    Array of integer values (dtype=int32)",
@@ -16386,6 +16386,16 @@
                           "name": "values",
                           "type": "NDArray[]",
                           "default": null,
+                          "kind": "positional or keyword"
+                        },
+                        {
+                          "name": "missing",
+                          "type": "int",
+                          "default": {
+                            "cls": "ExprUnaryOp",
+                            "operator": "-",
+                            "value": "1"
+                          },
                           "kind": "positional or keyword"
                         }
                       ],
@@ -16611,7 +16621,7 @@
                     "from_dict": {
                       "name": "from_dict",
                       "kind": "function",
-                      "signature": "(cls, data: dict[(int, int | None)], max_node: int)",
+                      "signature": "(cls, data: dict[(int, int | None)], max_node: int, missing: int | None = None)",
                       "docstring": {
                         "summary": "Build from node->int dict.",
                         "description": "Build from node->int dict.\n\nParameters\n----------\ndata : dict[int, int | None]\n    Mapping from node (int) to integer value (or None for missing)\nmax_node : int\n    Maximum node number in corpus\n\nReturns\n-------\nIntFeatureArray\n    New IntFeatureArray instance",
@@ -16635,6 +16645,12 @@
                           "type": "int",
                           "default": null,
                           "kind": "positional or keyword"
+                        },
+                        {
+                          "name": "missing",
+                          "type": "int | None",
+                          "default": "None",
+                          "kind": "positional or keyword"
                         }
                       ],
                       "returns": {
@@ -16642,8 +16658,8 @@
                       },
                       "decorators": [
                         {
-                          "endlineno": 494,
-                          "lineno": 494,
+                          "endlineno": 512,
+                          "lineno": 512,
                           "value": {
                             "cls": "ExprName",
                             "member": null,
@@ -16727,7 +16743,7 @@
                     "load": {
                       "name": "load",
                       "kind": "function",
-                      "signature": "(cls, path: str, mmap_mode: str = 'r')",
+                      "signature": "(cls, path: str, mmap_mode: str = 'r', missing: int = {'cls': 'ExprUnaryOp', 'operator': '-', 'value': '1'})",
                       "docstring": {
                         "summary": "Load from .npy file.",
                         "description": "Load from .npy file.\n\nParameters\n----------\npath : str\n    Input file path\nmmap_mode : str, optional\n    Memory-map mode (default: 'r')\n\nReturns\n-------\nIntFeatureArray\n    Loaded IntFeatureArray instance",
@@ -16751,6 +16767,16 @@
                           "type": "str",
                           "default": "'r'",
                           "kind": "positional or keyword"
+                        },
+                        {
+                          "name": "missing",
+                          "type": "int",
+                          "default": {
+                            "cls": "ExprUnaryOp",
+                            "operator": "-",
+                            "value": "1"
+                          },
+                          "kind": "positional or keyword"
                         }
                       ],
                       "returns": {
@@ -16758,8 +16784,8 @@
                       },
                       "decorators": [
                         {
-                          "endlineno": 529,
-                          "lineno": 529,
+                          "endlineno": 552,
+                          "lineno": 552,
                           "value": {
                             "cls": "ExprName",
                             "member": null,
@@ -16795,6 +16821,38 @@
                         "type": "None"
                       },
                       "decorators": []
+                    },
+                    "select_missing": {
+                      "name": "select_missing",
+                      "kind": "function",
+                      "signature": "(data: Iterable[int | None])",
+                      "docstring": {
+                        "summary": "Select an unused int32 sentinel; never silently discard -1 BCE years.",
+                        "description": "Select an unused int32 sentinel; never silently discard -1 BCE years.",
+                        "parsed": []
+                      },
+                      "parameters": [
+                        {
+                          "name": "data",
+                          "type": "Iterable[int | None]",
+                          "default": null,
+                          "kind": "positional or keyword"
+                        }
+                      ],
+                      "returns": {
+                        "type": "int"
+                      },
+                      "decorators": [
+                        {
+                          "endlineno": 495,
+                          "lineno": 495,
+                          "value": {
+                            "cls": "ExprName",
+                            "member": null,
+                            "name": "staticmethod"
+                          }
+                        }
+                      ]
                     },
                     "to_dict": {
                       "name": "to_dict",
@@ -16832,6 +16890,20 @@
                         "cls": "ExprUnaryOp",
                         "operator": "-",
                         "value": "1"
+                      }
+                    },
+                    "missing": {
+                      "name": "missing",
+                      "type": "",
+                      "docstring": {
+                        "summary": "",
+                        "description": "",
+                        "sections": {}
+                      },
+                      "value": {
+                        "cls": "ExprName",
+                        "member": null,
+                        "name": "missing"
                       }
                     },
                     "values": {
@@ -17343,6 +17415,10 @@
               "functions": {},
               "modules": {},
               "aliases": {
+                "Iterable": {
+                  "name": "Iterable",
+                  "target": "collections.abc.Iterable"
+                },
                 "Iterator": {
                   "name": "Iterator",
                   "target": "collections.abc.Iterator"
