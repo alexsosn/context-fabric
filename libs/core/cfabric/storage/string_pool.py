@@ -395,12 +395,12 @@ class IntFeatureArray:
     ----------
     values : np.ndarray
         Array of integer values (dtype=int32)
-        MISSING (-1) indicates no value
+        A per-feature missing sentinel indicates no value
     """
 
     MISSING = -1
 
-    def __init__(self, values: NDArray[np.int32]) -> None:
+    def __init__(self, values: NDArray[np.int32], missing: int = -1) -> None:
         """
         Initialize an IntFeatureArray.
 
@@ -410,6 +410,7 @@ class IntFeatureArray:
             Array of integer values (dtype=int32)
         """
         self.values = values
+        self.missing = missing
 
     def get(self, node: int) -> int | None:
         """
@@ -430,7 +431,7 @@ class IntFeatureArray:
         if arr_idx < 0 or arr_idx >= len(self.values):
             return None
         val = self.values[arr_idx]
-        if val == self.MISSING:
+        if val == self.missing:
             return None
         return int(val)
 
@@ -473,7 +474,7 @@ class IntFeatureArray:
             (node, int_value) pairs
         """
         # Use numpy to find all nodes with values (vectorized, fast)
-        mask = self.values != self.MISSING
+        mask = self.values != self.missing
         valid_indices = np.where(mask)[0]
 
         for idx in valid_indices:
@@ -491,8 +492,27 @@ class IntFeatureArray:
         """
         return dict(self.items())
 
+    @staticmethod
+    def select_missing(data: Iterable[int | None]) -> int:
+        """Select an unused int32 sentinel; never silently discard -1 BCE years."""
+        values = {int(v) for v in data if v is not None}
+        low, high = -(2**31), 2**31 - 1
+        if any(v < low or v > high for v in values):
+            raise ValueError("integer feature value exceeds lossless int32 range")
+        for candidate in (-1, low, high):
+            if candidate not in values:
+                return candidate
+        candidate = low + 1
+        while candidate in values:
+            candidate += 1
+            if candidate >= high:
+                raise ValueError("integer feature has no available int32 missing sentinel")
+        return candidate
+
     @classmethod
-    def from_dict(cls, data: dict[int, int | None], max_node: int) -> IntFeatureArray:
+    def from_dict(
+        cls, data: dict[int, int | None], max_node: int, missing: int | None = None
+    ) -> IntFeatureArray:
         """
         Build from node->int dict.
 
@@ -508,12 +528,15 @@ class IntFeatureArray:
         IntFeatureArray
             New IntFeatureArray instance
         """
-        values = np.full(max_node, cls.MISSING, dtype='int32')
+        sentinel = cls.select_missing(data.values()) if missing is None else missing
+        if sentinel in data.values():
+            raise ValueError("selected missing sentinel collides with source integer")
+        values = np.full(max_node, sentinel, dtype='int32')
         for node, value in data.items():
             # None values stay as MISSING sentinel
             if value is not None:
                 values[node - 1] = value
-        return cls(values)
+        return cls(values, missing=sentinel)
 
     def save(self, path: str) -> None:
         """
@@ -527,7 +550,9 @@ class IntFeatureArray:
         np.save(path, self.values)
 
     @classmethod
-    def load(cls, path: str, mmap_mode: str = 'r') -> IntFeatureArray:
+    def load(
+        cls, path: str, mmap_mode: str = 'r', missing: int = -1
+    ) -> IntFeatureArray:
         """
         Load from .npy file.
 
@@ -544,7 +569,7 @@ class IntFeatureArray:
             Loaded IntFeatureArray instance
         """
         values = np.load(path, mmap_mode=mmap_mode)
-        return cls(values)
+        return cls(values, missing=missing)
 
     def filter_by_value(
         self, nodes: list[int] | range, value: int
@@ -575,7 +600,7 @@ class IntFeatureArray:
         valid_nodes = node_arr[valid_mask]
 
         values_at_nodes = self.values[valid_arr_indices]
-        match_mask = values_at_nodes == value
+        match_mask = (values_at_nodes != self.missing) & (values_at_nodes == value)
 
         return valid_nodes[match_mask]
 
@@ -608,7 +633,7 @@ class IntFeatureArray:
         valid_nodes = node_arr[valid_mask]
 
         values_at_nodes = self.values[valid_arr_indices]
-        match_mask = np.isin(values_at_nodes, list(values))
+        match_mask = (values_at_nodes != self.missing) & np.isin(values_at_nodes, list(values))
 
         return valid_nodes[match_mask]
 
@@ -642,7 +667,7 @@ class IntFeatureArray:
 
         values_at_nodes = self.values[valid_arr_indices]
         # Must have a value AND be less than threshold
-        match_mask = (values_at_nodes != self.MISSING) & (values_at_nodes < threshold)
+        match_mask = (values_at_nodes != self.missing) & (values_at_nodes < threshold)
 
         return valid_nodes[match_mask]
 
@@ -676,7 +701,7 @@ class IntFeatureArray:
 
         values_at_nodes = self.values[valid_arr_indices]
         # Must have a value AND be greater than threshold
-        match_mask = (values_at_nodes != self.MISSING) & (values_at_nodes > threshold)
+        match_mask = (values_at_nodes != self.missing) & (values_at_nodes > threshold)
 
         return valid_nodes[match_mask]
 
@@ -705,7 +730,7 @@ class IntFeatureArray:
         valid_nodes = node_arr[valid_mask]
 
         values_at_nodes = self.values[valid_arr_indices]
-        has_value_mask = values_at_nodes != self.MISSING
+        has_value_mask = values_at_nodes != self.missing
 
         return valid_nodes[has_value_mask]
 
@@ -734,7 +759,7 @@ class IntFeatureArray:
         valid_nodes = node_arr[valid_mask]
 
         values_at_nodes = self.values[valid_arr_indices]
-        missing_mask = values_at_nodes == self.MISSING
+        missing_mask = values_at_nodes == self.missing
 
         return valid_nodes[missing_mask]
 
@@ -747,7 +772,7 @@ class IntFeatureArray:
         dict[int, int]
             Mapping from integer value to count
         """
-        valid_mask = self.values != self.MISSING
+        valid_mask = self.values != self.missing
         valid_values = self.values[valid_mask]
         unique_vals, counts = np.unique(valid_values, return_counts=True)
         return {int(val): int(count) for val, count in zip(unique_vals, counts)}
