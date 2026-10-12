@@ -10,6 +10,7 @@ This module defines `Fabric`, which provides:
 """
 
 import collections
+import json
 import logging
 from itertools import chain
 from collections.abc import Iterable
@@ -59,7 +60,7 @@ from cfabric.features.computed import (
     LevDownComputed,
 )
 from cfabric.storage.mmap_manager import MmapManager
-from cfabric.io.compiler import Compiler, compile_corpus
+from cfabric.io.compiler import Compiler, compile_corpus, source_tf_stats
 from cfabric.storage.csr import CSRArray
 from cfabric.storage.string_pool import StringPool, IntFeatureArray
 from cfabric.features.node import NodeFeature
@@ -1097,8 +1098,25 @@ class Fabric:
         for loc in self.locations:
             for mod in self.modules:
                 cfm_path = Path(loc) / mod / '.cfm' / CFM_VERSION
-                if (cfm_path / 'meta.json').exists():
-                    return cfm_path
+                manifest_path = cfm_path / 'meta.json'
+                if not manifest_path.is_file():
+                    continue
+                try:
+                    with manifest_path.open(encoding='utf-8') as handle:
+                        manifest = json.load(handle)
+                    observed = source_tf_stats(Path(loc) / mod)
+                except (OSError, ValueError):
+                    logger.warning("Cannot validate CFM source snapshot at %s", cfm_path)
+                    continue
+                if not isinstance(manifest, dict) or manifest.get(
+                    'source_tf_stats'
+                ) != observed:
+                    logger.warning(
+                        "CFM snapshot is absent/stale at %s; using raw TF",
+                        cfm_path,
+                    )
+                    continue
+                return cfm_path
         return None
 
     def compile(self, output_dir: str | None = None, silent: str = SILENT_D) -> bool:
