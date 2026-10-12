@@ -74,6 +74,20 @@ def _check_sentinel_collision(
     return False
 
 
+def source_tf_stats(source: Path) -> dict[str, list[int]]:
+    """Cheap source inventory for cache freshness (size and nanosecond mtime).
+
+    Avoid rehashing potentially multi-GB .tf inputs on every mmap open.
+    This detects ordinary changes, not deliberate timestamp spoofing.
+    """
+    snapshot: dict[str, list[int]] = {}
+    for path in sorted(source.glob("*.tf")):
+        if path.is_file():
+            stat = path.stat()
+            snapshot[path.name] = [stat.st_size, stat.st_mtime_ns]
+    return snapshot
+
+
 class Compiler:
     """
     Compile .tf source files to CF mmap format.
@@ -109,6 +123,7 @@ class Compiler:
         self._otype_data: tuple[tuple[str, ...], int, int, str] | None = None
         self._oslots_data: tuple[tuple[tuple[int, ...], ...], int, int] | None = None
         self._otext_meta: dict[str, str] = {}
+        self._source_tf_stats: dict[str, list[int]] = {}
         self._feature_meta: dict[str, dict[str, str]] = {}
         self._node_features: dict[str, dict[int, str | int]] = {}
         self._edge_features: dict[str, tuple[dict[int, Any], bool]] = {}  # (data, has_values)
@@ -158,6 +173,9 @@ class Compiler:
         output_dir = Path(output_dir)
 
         self.info(f"Compiling {self.source_dir} to {output_dir}")
+
+        # Snapshot source *before* parsing to detect modifications during compilation.
+        self._source_tf_stats = source_tf_stats(self.source_dir)
 
         # Create directory structure
         self._create_directories(output_dir)
@@ -902,7 +920,9 @@ class Compiler:
             json.dump(meta, f, indent=1)
 
     def _write_meta(self, output_dir: Path) -> None:
-        """Write corpus metadata to meta.json."""
+        """Write corpus metadata to meta.json only for a stable TF snapshot."""
+        if source_tf_stats(self.source_dir) != self._source_tf_stats:
+            raise RuntimeError("native .tf source changed during .cfm compilation")
         # Collect feature names
         node_features = list(self._node_features.keys())
         edge_features = list(self._edge_features.keys())
@@ -910,6 +930,7 @@ class Compiler:
         meta: dict[str, Any] = {
             'cfm_version': CFM_VERSION,
             'source': str(self.source_dir.name),
+            'source_tf_stats': self._source_tf_stats,
             'max_slot': self.max_slot,
             'max_node': self.max_node,
             'slot_type': self.slot_type,
