@@ -64,7 +64,7 @@ def test_empty_declared_features_are_materialized_and_loadable(tmp_path: Path) -
 
 def _tiny_warp(root: Path) -> None:
     _write(root, "otype", "@node\n@valueType=str\n@slotType=word\n\n1-2\tword\n3\tverse\n")
-    _write(root, "oslots", "@edge\n\n3\t1-2\n")
+    _write(root, "oslots", "@edge\n@valueType=str\n\n3\t1-2\n")
     _write(root, "otext", "@config\n@fmt:text-orig-full={form}\n\n")
     _write(root, "form", "@node\n@valueType=str\n\n1\talpha\n2\tbeta\n")
 
@@ -88,7 +88,7 @@ def test_compiled_cache_rejects_changed_source_even_when_size_is_identical(
     os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns + 10_000_000_000))
     fresh = Fabric(locations=str(tmp_path), silent="deep")
     api = fresh.loadAll(silent="deep")
-    assert not fresh._loaded_from_cfm, "changed source was silently shadowed"
+    assert not getattr(fresh, "_loaded_from_cfm", False), "changed source was silently shadowed"
     assert api.F.form.v(1) == "omega"
 
 
@@ -97,17 +97,17 @@ def test_compiled_cache_rejects_new_and_removed_feature_files(tmp_path: Path) ->
     baseline = Fabric(locations=str(tmp_path), silent="deep")
     assert baseline.compile(silent="deep")
 
-    _write(tmp_path, "gloss", "@node\n\n1\tnew\n")
+    _write(tmp_path, "gloss", "@node\n@valueType=str\n\n1\tnew\n")
     new = Fabric(locations=str(tmp_path), silent="deep")
     api = new.loadAll(silent="deep")
-    assert not new._loaded_from_cfm
+    assert not getattr(new, "_loaded_from_cfm", False)
     assert api.F.gloss.v(1) == "new"
 
     (tmp_path / "gloss.tf").unlink()
     (tmp_path / "form.tf").unlink()
     removed = Fabric(locations=str(tmp_path), silent="deep")
     api = removed.loadAll(silent="deep")
-    assert not removed._loaded_from_cfm
+    assert not getattr(removed, "_loaded_from_cfm", False)
     assert "form" not in api.Fall(warp=False)
 
 
@@ -124,4 +124,4 @@ def test_legacy_compiled_cache_without_source_snapshot_is_not_trusted(
 
     fresh = Fabric(locations=str(tmp_path), silent="deep")
     assert fresh.loadAll(silent="deep").F.form.v(1) == "alpha"
-    assert not fresh._loaded_from_cfm
+    assert not getattr(fresh, "_loaded_from_cfm", False)
