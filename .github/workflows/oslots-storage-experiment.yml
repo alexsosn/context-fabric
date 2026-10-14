@@ -1,0 +1,82 @@
+name: oslots storage experiment
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'libs/core/tests/unit/storage/test_oslots_rle_experiment.py'
+      - '.github/workflows/oslots-storage-experiment.yml'
+      - 'libs/core/tests/unit/storage/measure_oslots_tf.py'
+      - 'libs/core/tests/unit/storage/measure_feature_density.py'
+      - 'libs/core/tests/unit/storage/test_feature_density_experiment.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rle-proof:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libs/core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install fork source and test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Check lossless semantics and report storage/time trade-offs
+        run: python -m pytest tests/unit/storage/test_oslots_rle_experiment.py tests/unit/storage/test_feature_density_experiment.py -q -s
+      - name: Download pinned real BHSA oslots (2021 dataset)
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 180 \
+            'https://raw.githubusercontent.com/ETCBC/bhsa/4db00e2157915495e1a4d3d57e41223df24775da/tf/2021/oslots.tf' \
+            --output "${RUNNER_TEMP}/bhsa_oslots.tf"
+          sha256sum "${RUNNER_TEMP}/bhsa_oslots.tf"
+      - name: Measure real BHSA run-length versus CSR size
+        run: python tests/unit/storage/measure_oslots_tf.py "${RUNNER_TEMP}/bhsa_oslots.tf"
+
+      - name: Download pinned TLHdig-TF 0.4.0 oslots
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 240 \
+            'https://raw.githubusercontent.com/alexsosn/TLHdig-TF/88dc8298547b11e8a954a7bfb07dd3e55aa716ab/tf/0.4.0/oslots.tf' \
+            --output "${RUNNER_TEMP}/tlhdig_oslots.tf"
+          sha256sum "${RUNNER_TEMP}/tlhdig_oslots.tf"
+      - name: Measure real TLHdig run-length versus CSR size
+        run: python tests/unit/storage/measure_oslots_tf.py "${RUNNER_TEMP}/tlhdig_oslots.tf"
+      - name: Download and verify immutable ORACC-TF RIAO-RINAP 1.0 release
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --max-time 240 \
+            'https://github.com/alexsosn/ORACC-TF/releases/download/v1.0.0/assyrian-royal-inscriptions-1.0.0.zip' \
+            --output "${RUNNER_TEMP}/oracc.zip"
+          echo '788f580604e30054fab34c4c3ea60ec3eb4f399412f1da90f778469d03507468  '"${RUNNER_TEMP}/oracc.zip" | sha256sum -c -
+          mkdir -p "${RUNNER_TEMP}/oracc"
+          unzip -q "${RUNNER_TEMP}/oracc.zip" -d "${RUNNER_TEMP}/oracc"
+          find "${RUNNER_TEMP}/oracc" -name 'oslots.tf' -print
+      - name: Measure real ORACC RIAO-RINAP run-length versus CSR size
+        run: |
+          oslots="$(find "${RUNNER_TEMP}/oracc" -name oslots.tf -type f -print -quit)"
+          test -n "$oslots"
+          python tests/unit/storage/measure_oslots_tf.py "$oslots"
+
+      - name: Measure ORACC feature sparsity on published 1.0 archive
+        run: |
+          root="${RUNNER_TEMP}/oracc/tf/0.4.0"
+          python tests/unit/storage/measure_feature_density.py 1208649 \
+            "$root/form.tf" "$root/sign_json.tf" "$root/translation_text.tf" "$root/synthetic.tf"
+      - name: Download representative pinned TLHdig features
+        run: |
+          for feat in cu_sign lemma docid cu_aligned; do
+            curl --fail --location --silent --show-error --retry 3 --max-time 240 \
+              "https://raw.githubusercontent.com/alexsosn/TLHdig-TF/88dc8298547b11e8a954a7bfb07dd3e55aa716ab/tf/0.4.0/${feat}.tf" \
+              --output "${RUNNER_TEMP}/tlhdig_${feat}.tf"
+          done
+      - name: Measure TLHdig feature sparsity with full node address space
+        run: |
+          python tests/unit/storage/measure_feature_density.py 8285600 \
+            "${RUNNER_TEMP}/tlhdig_cu_sign.tf" \
+            "${RUNNER_TEMP}/tlhdig_lemma.tf" \
+            "${RUNNER_TEMP}/tlhdig_docid.tf" \
+            "${RUNNER_TEMP}/tlhdig_cu_aligned.tf"
