@@ -34,7 +34,7 @@
             "__init__": {
               "name": "__init__",
               "kind": "function",
-              "signature": "(self, cursor_id: str, corpus: str, template: str, results: list[tuple[(int, ...)]], total_count: int, created_at: float, expires_at: float, last_accessed: float = {'arguments': [], 'cls': 'ExprCall', 'function': {'cls': 'ExprAttribute', 'values': [{'cls': 'ExprName', 'member': None, 'name': 'time'}, {'cls': 'ExprName', 'member': None, 'name': 'time'}]}})",
+              "signature": "(self, cursor_id: str, corpus: str, template: str, results: list[tuple[(int, ...)]], created_at: float, expires_at: float, last_accessed: float = {'arguments': [], 'cls': 'ExprCall', 'function': {'cls': 'ExprAttribute', 'values': [{'cls': 'ExprName', 'member': None, 'name': 'time'}, {'cls': 'ExprName', 'member': None, 'name': 'time'}]}}, total_count: int = 0)",
               "docstring": {
                 "summary": "",
                 "description": "",
@@ -72,12 +72,6 @@
                   "kind": "positional or keyword"
                 },
                 {
-                  "name": "total_count",
-                  "type": "int",
-                  "default": null,
-                  "kind": "positional or keyword"
-                },
-                {
                   "name": "created_at",
                   "type": "float",
                   "default": null,
@@ -111,6 +105,34 @@
                       ]
                     }
                   },
+                  "kind": "positional or keyword"
+                },
+                {
+                  "name": "total_count",
+                  "type": "int",
+                  "default": "0",
+                  "kind": "positional or keyword"
+                }
+              ],
+              "returns": {
+                "type": "None"
+              },
+              "decorators": []
+            },
+            "__post_init__": {
+              "name": "__post_init__",
+              "kind": "function",
+              "signature": "(self)",
+              "docstring": {
+                "summary": "",
+                "description": "",
+                "sections": {}
+              },
+              "parameters": [
+                {
+                  "name": "self",
+                  "type": "",
+                  "default": null,
                   "kind": "positional or keyword"
                 }
               ],
@@ -274,7 +296,7 @@
                 "description": "",
                 "sections": {}
               },
-              "value": null
+              "value": "0"
             }
           }
         },
