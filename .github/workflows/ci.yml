@@ -38,6 +38,12 @@ jobs:
         run: cargo test --features python
       - name: Run Python tests
         run: pytest tests/python -v
+      # The broader suite deliberately keeps TF optional. For this migration
+      # regression, the independent Text-Fabric oracle MUST actually run.
+      - name: Install independent Text-Fabric regression oracle
+        run: python -m pip install text-fabric==13.1.0
+      - name: Verify migrated Python fixes against Text-Fabric
+        run: pytest tests/python/test_legacy_python_regressions.py -v -rs
 
   distributions:
     name: Build and test context-fabric distributions
