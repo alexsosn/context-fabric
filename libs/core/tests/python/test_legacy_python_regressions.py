@@ -85,8 +85,9 @@ def test_fresh_process_compiled_reopen_preserves_missing_and_signed_values(
     code = """
 import json, sys
 from cfabric import Fabric
-path, compiled = sys.argv[1:3]
-api = Fabric(locations=path, silent='deep').openMapped(compiled)
+path, compiled, mode = sys.argv[1:4]
+fabric = Fabric(locations=path, silent='deep')
+api = fabric.openMapped(compiled) if mode == 'openMapped' else fabric.loadAll(silent='deep')
 assert 'empty_text' in api.Fall(warp=False)
 assert 'empty_edge' in api.Eall(warp=False)
 assert api.F.empty_text.v(1) is None
@@ -96,14 +97,15 @@ print(json.dumps([api.F.signed_year.v(1), api.F.signed_year.v(2),
                   api.F.signed_year.v(3), api.F.sparse_year.v(1),
                   api.F.sparse_year.v(2), list(api.F.sparse_year.s(-1))]))
 """
-    for _ in range(2):
-        completed = subprocess.run(
-            [sys.executable, "-c", code, str(corpus), str(compiled)],
-            check=True, capture_output=True, text=True, timeout=45,
-        )
-        assert json.loads(completed.stdout.strip().splitlines()[-1]) == [
-            -1, -(2**31), 0, -1, None, [1]
-        ]
+    for mode in ("openMapped", "loadAll"):
+        for _ in range(2):
+            completed = subprocess.run(
+                [sys.executable, "-c", code, str(corpus), str(compiled), mode],
+                check=True, capture_output=True, text=True, timeout=45,
+            )
+            assert json.loads(completed.stdout.strip().splitlines()[-1]) == [
+                -1, -(2**31), 0, -1, None, [1]
+            ]
 
 
 def test_negative_and_empty_features_agree_with_text_fabric(
