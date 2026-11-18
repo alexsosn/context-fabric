@@ -30,3 +30,11 @@ export function sectionLabel(ref: string, parent: string): string {
   }
   return ref;
 }
+
+/** A deep-link query parameter is not proof that a line exists in the source. */
+export function verifiedSectionRef(
+  ref: string | null,
+  trees: readonly { heading: string }[] | undefined,
+): string | null {
+  return ref && trees?.some((tree) => tree.heading === ref) ? ref : null;
+}

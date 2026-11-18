@@ -21,7 +21,7 @@ import { alignRef, navigate } from "../ui";
 import { Workspaces } from "../Workspaces";
 import { ReaderPanel } from "./Panel";
 import { useReader } from "./state";
-import { sectionLabel, selectionForRef } from "./section";
+import { sectionLabel, selectionForRef, verifiedSectionRef } from "./section";
 import { textOf } from "./tree";
 import { closesParagraph, type Mode } from "./url";
 
@@ -43,7 +43,7 @@ function usePassage(card: CorpusCard | undefined, ref: string | null, settings: 
   });
 }
 
- interface ChapterProps {
+interface ChapterProps {
   card: CorpusCard;
   chapter: string;
   settings: ViewSettings;
@@ -300,6 +300,7 @@ export function ReaderApp() {
   // the selected verse's render tree, for its words
   const selectedPassage = usePassage(card, selectedChapter, own);
   const tree = selectedPassage.data?.trees.find((t) => t.heading === selected);
+  const verifiedLineRef = verifiedSectionRef(state.selectedRef ?? null, selectedPassage.data?.trees);
 
   // the chapter's neighbours
   const current = usePassage(card, state.ref, own);
@@ -378,7 +379,7 @@ export function ReaderApp() {
           <Cite
             align="start"
             text={(software, date) =>
-              citePassage(card, state.selectedRef ?? (state.verse !== null ? `${state.ref}:${state.verse}` : state.ref!), software, date)
+              citePassage(card, verifiedLineRef ?? (state.verse !== null ? `${state.ref}:${state.verse}` : state.ref!), software, date)
             }
           />
         ) : null}
