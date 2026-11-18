@@ -1,19 +1,20 @@
 import { useCallback, useRef, useState } from "react";
-import { FORMAT_NOTE, formatOptions, shownFormat } from "./formats";
+import { formatNote, formatOptions, shownFormat } from "./formats";
 import type { ViewSettings } from "./types";
 import { useCloseOutside } from "./shared/popover";
 
-/** The display menu: vocalized or unvocalized text (when the corpus offers
- * both, as the BHSA does) and what render trees show, kept per browser. */
+/** Source-provided script formats and shared display settings. */
 export function DisplayOptions({
   settings,
   formats,
   defaultFormat,
+  languageCode = null,
   onChange,
 }: {
   settings: ViewSettings;
   formats: string[];
   defaultFormat: string | null;
+  languageCode?: string | null;
   onChange: (change: Partial<ViewSettings>) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -22,7 +23,8 @@ export function DisplayOptions({
   const close = useCallback(() => setOpen(false), []);
   useCloseOutside(open, close, panel);
 
-  const options = formatOptions(formats);
+  const options = formatOptions(formats, languageCode);
+  const note = formatNote(languageCode);
   const toggles: [keyof ViewSettings, string][] = [
     ["showTypes", "Show object types"],
     ["standardFeatures", "Show each corpus' standard features"],
@@ -48,7 +50,7 @@ export function DisplayOptions({
               <select
                 value={shownFormat(settings.fmt, formats, defaultFormat) ?? ""}
                 onChange={(e) => onChange({ fmt: e.target.value === defaultFormat ? null : e.target.value })}
-                title={FORMAT_NOTE}
+                title={note}
                 className="rounded border border-rule-strong bg-vellum px-2 py-1"
               >
                 {options.map((o) => (
@@ -57,7 +59,7 @@ export function DisplayOptions({
                   </option>
                 ))}
               </select>
-              <span className="text-[12px] leading-snug text-stone">{FORMAT_NOTE}</span>
+              <span className="text-[12px] leading-snug text-stone">{note}</span>
             </label>
           ) : null}
           {toggles.map(([key, label]) => (

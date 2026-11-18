@@ -491,6 +491,7 @@ export function App() {
             settings={settings}
             formats={firstCard?.display.textFormats ?? []}
             defaultFormat={firstCard?.display.defaultFormat ?? null}
+            languageCode={firstCard?.display.languageCode ?? null}
             onChange={setSettings}
           />
           <InterfaceMenu current="classic" describe={() => describeWorkspace(ws)} />

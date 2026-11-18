@@ -225,6 +225,7 @@ export function ParallelApp() {
             settings={settings}
             formats={leadCard?.display.textFormats ?? []}
             defaultFormat={leadCard?.display.defaultFormat ?? null}
+            languageCode={leadCard?.display.languageCode ?? null}
             onChange={setSettings}
           />
           <Workspaces corpora={names} current="parallel" onLoad={navigate} />
