@@ -1,3 +1,5 @@
+import type { Panel } from "./url";
+
 /** A selected section is identified by its actual TF reference.
  *
  * Numeric Bible verses retain the compact `?v=3` URL. For two-level
@@ -37,4 +39,25 @@ export function verifiedSectionRef(
   trees: readonly { heading: string }[] | undefined,
 ): string | null {
   return ref && trees?.some((tree) => tree.heading === ref) ? ref : null;
+}
+
+/** A two-level corpus has document → line, so start at the document.
+ * Three-level corpora (e.g. Bible book/chapter/verse or ORACC text/face/line)
+ * start at the first containing section, never at an isolated leaf.
+ */
+export function initialReadingRef(
+  document: string,
+  firstChild: string | null,
+  sectionLevelCount: number,
+): string {
+  return sectionLevelCount === 2 ? document : (firstChild ?? document);
+}
+
+/** Avoid opening a Bible-only parallel verse panel for source-qualified lines. */
+export function panelAfterSelection(
+  current: Panel | null,
+  verse: number | null,
+  selectedRef: string | null,
+): Panel | null {
+  return current ?? (selectedRef !== null ? "words" : (verse !== null ? "parallels" : null));
 }

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { parseReader, serializeReader, type Mode, type Panel, type Reader } from "./url";
+import { panelAfterSelection } from "./section";
 import { useUrlState } from "../shared/urlState";
 
 const readReader = () => parseReader(window.location);
@@ -32,7 +33,7 @@ export function useReader(): [Reader, ReaderActions] {
             ref: ref ?? s.ref,
             verse,
             selectedRef,
-            panel: verse === null && selectedRef === null ? s.panel : (s.panel ?? "parallels"),
+            panel: panelAfterSelection(s.panel, verse, selectedRef),
           }),
           false,
         ),

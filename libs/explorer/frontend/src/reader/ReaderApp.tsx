@@ -178,13 +178,13 @@ export function ReaderApp() {
     if (start) actions.setCorpus(start, null);
   }, [state.corpus, ready, reference.settled, reference.name, names, actions]);
   useEffect(() => {
-    if (!corpus || state.ref) return;
+    if (!corpus || !card || state.ref) return;
     let current = true;
-    firstChapter(corpus).then((ref) => current && ref && actions.open(ref, false));
+    firstChapter(corpus, card.sectionTypes.length).then((ref) => current && ref && actions.open(ref, false));
     return () => {
       current = false;
     };
-  }, [corpus, state.ref, actions]);
+  }, [corpus, card, state.ref, actions]);
 
   // the chapters below each other: from the one opened, more as one scrolls on
   const [chain, setChain] = useState<string[]>([]);
