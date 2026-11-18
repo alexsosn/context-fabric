@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectionForRef, sectionLabel, verifiedSectionRef, initialReadingRef, panelAfterSelection } from "./section";
+import { selectionForRef, sectionLabel, verifiedSectionRef, initialReadingRef, panelAfterSelection, sectionNavigation } from "./section";
 import { parseReader, serializeReader, type Reader } from "./url";
 
 const riaoFace = "riao/ria1:Q001801 Q001801.face.1";
@@ -79,6 +79,26 @@ describe("Reader section selection", () => {
     expect(panelAfterSelection(null, 3, null)).toBe("parallels");
     expect(panelAfterSelection("notes", null, riaoLine)).toBe("notes");
     expect(panelAfterSelection(null, null, null)).toBeNull();
+  });
+
+  it("opens source-linked word and notes refs in their actual parent section", () => {
+    const riaoPath = [
+      { type: "document", ref: "riao/ria1:Q001801" },
+      { type: "face", ref: riaoFace },
+      { type: "line", ref: riaoLine },
+    ];
+    expect(sectionNavigation(riaoLine, riaoPath, "line")).toEqual({
+      chapter: riaoFace, selectedRef: riaoLine,
+    });
+    expect(sectionNavigation(riaoFace, riaoPath.slice(0, 2), "line")).toEqual({
+      chapter: riaoFace, selectedRef: null,
+    });
+    expect(sectionNavigation("Q000935 1", [
+      { type: "document", ref: "Q000935" }, { type: "line", ref: "Q000935 1" },
+    ], "line")).toEqual({ chapter: "Q000935", selectedRef: "Q000935 1" });
+    expect(sectionNavigation("Unknown", riaoPath, "line")).toEqual({
+      chapter: "Unknown", selectedRef: null,
+    });
   });
 
 });
