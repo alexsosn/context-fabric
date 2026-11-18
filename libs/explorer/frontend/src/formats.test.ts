@@ -3,7 +3,7 @@ import { formatOptions, formatNote, shownFormat } from "./formats";
 
 describe("formatOptions", () => {
   it("names the BHSA's two formats", () => {
-    expect(formatOptions(["text-orig-full", "text-orig-plain"])).toEqual([
+    expect(formatOptions(["text-orig-full", "text-orig-plain"], "hbo")).toEqual([
       { value: "text-orig-full", label: "Vocalized" },
       { value: "text-orig-plain", label: "Unvocalized" },
     ]);
