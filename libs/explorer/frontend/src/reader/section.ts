@@ -61,3 +61,19 @@ export function panelAfterSelection(
 ): Panel | null {
   return current ?? (selectedRef !== null ? "words" : (verse !== null ? "parallels" : null));
 }
+
+/** Follow an explicit TF section path for a Reader deep link.
+ * Do not infer a line's parent by splitting its source-qualified string.
+ */
+export function sectionNavigation(
+  ref: string,
+  path: readonly { type: string; ref: string }[],
+  leafType: string,
+): { chapter: string; selectedRef: string | null } {
+  const leaf = path[path.length - 1];
+  const parent = path[path.length - 2];
+  if (leaf?.ref === ref && leaf.type === leafType && parent) {
+    return { chapter: parent.ref, selectedRef: ref };
+  }
+  return { chapter: ref, selectedRef: null };
+}

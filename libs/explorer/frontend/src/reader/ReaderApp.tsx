@@ -21,7 +21,7 @@ import { alignRef, navigate } from "../ui";
 import { Workspaces } from "../Workspaces";
 import { ReaderPanel } from "./Panel";
 import { useReader } from "./state";
-import { sectionLabel, selectionForRef, verifiedSectionRef } from "./section";
+import { sectionLabel, sectionNavigation, selectionForRef, verifiedSectionRef } from "./section";
 import { textOf } from "./tree";
 import { closesParagraph, type Mode } from "./url";
 
@@ -332,8 +332,23 @@ export function ReaderApp() {
     const aligned = await alignRef(from, ref, corpus);
     if (!aligned) return;
     const { chapter, verse } = splitRef(aligned);
-    pending.current = aligned;
-    actions.open(chapter, true, verse);
+    if (verse !== null) {
+      pending.current = aligned;
+      actions.open(chapter, true, verse);
+      return;
+    }
+    // Nonnumeric source references can denote a text, face or line. The API
+    // provides their actual TF section path, so do not guess the parent.
+    try {
+      const passage = await api.passage(corpus, aligned, { mode: "plain" });
+      const target = sectionNavigation(aligned, passage.path, card?.sectionTypes.at(-1) ?? "");
+      pending.current = target.selectedRef;
+      actions.open(target.chapter, true, null, target.selectedRef);
+    } catch {
+      // The normal Reader error state reports an unknown or unavailable ref.
+      pending.current = null;
+      actions.open(aligned);
+    }
   };
 
   const toParallel = async (change: Parameters<typeof switchInterface>[1]) => {

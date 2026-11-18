@@ -7,7 +7,7 @@ const readReader = () => parseReader(window.location);
 
 export interface ReaderActions {
   /** Read a chapter (and select a verse in it). */
-  open: (ref: string, push?: boolean, verse?: number | null) => void;
+  open: (ref: string, push?: boolean, verse?: number | null, selectedRef?: string | null) => void;
   /** The chapter scrolled into view: only the URL follows, nothing is reloaded. */
   scrolled: (ref: string) => void;
   /** Select a verse of the chapter in the URL, and open the panel if it is closed. */
@@ -24,7 +24,8 @@ export function useReader(): [Reader, ReaderActions] {
 
   const actions = useMemo<ReaderActions>(
     () => ({
-      open: (ref, push = true, verse = null) => commit((s) => ({ ...s, ref, verse, selectedRef: null }), push),
+      open: (ref, push = true, verse = null, selectedRef = null) =>
+        commit((s) => ({ ...s, ref, verse, selectedRef }), push),
       scrolled: (ref) => commit((s) => (s.ref === ref ? s : { ...s, ref, verse: null, selectedRef: null }), false),
       select: (verse, ref, selectedRef = null) =>
         commit(
