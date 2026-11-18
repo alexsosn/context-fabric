@@ -1,12 +1,7 @@
-"""The text formats the browser offers: the BHSA's vocalized and unvocalized
-text, and only the full text of the other corpora.
+"""Show source-provided original text and full transliteration formats.
 
-A corpus defines more formats (transliterations, lexemes, the ketiv, the
-DSS' word-level and source formats); the browser leaves them out of its
-display options, and a request for one of them (an old link, a saved
-workspace) gets the corpus' default. The full list stays in the corpus'
-`DisplayConfig`, because the comparison and the Concordance choose their
-consonants from it.
+Special-purpose lexeme and ketiv formats remain unavailable in the menu.
+The corpus configuration remains authoritative about available text formats.
 """
 
 from __future__ import annotations
@@ -17,7 +12,7 @@ from typing import Any
 from cfabric_browser.display import DisplayConfig, RenderOptions
 
 # vocalized (vowels, accents, the qere) and unvocalized (consonants, the ketiv)
-FORMATS = ("text-orig-full", "text-orig-plain")
+FORMATS = ("text-orig-full", "text-orig-plain", "text-trans-full")
 
 
 def shown(config: DisplayConfig) -> list[str]:
