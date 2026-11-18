@@ -47,11 +47,15 @@ export function mergeCommon(kept: Common | null, current: Partial<Common>): Comm
   return merged;
 }
 
-/** `Genesis 1:3` → `Genesis 1` and 3; `Genesis 1` → `Genesis 1` and null. */
+/** Split only a *numeric final verse*. Colons inside qualified corpus IDs are opaque.
+ * A nonnumeric final component (e.g. ORACC `...:Q001801.1`) must survive intact. */
 export function splitRef(ref: string): { chapter: string; verse: number | null } {
-  const [chapter, verse] = ref.split(":");
-  const number = Number(verse);
-  return { chapter, verse: verse !== undefined && Number.isInteger(number) ? number : null };
+  const colon = ref.lastIndexOf(":");
+  if (colon >= 0 && /^\d+$/.test(ref.slice(colon + 1))) {
+    const number = Number(ref.slice(colon + 1));
+    if (Number.isSafeInteger(number)) return { chapter: ref.slice(0, colon), verse: number };
+  }
+  return { chapter: ref, verse: null };
 }
 
 // Panes

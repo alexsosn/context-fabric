@@ -4,6 +4,7 @@ import { api } from "../api";
 import { queryClient } from "../queryClient";
 import type { CorpusCard } from "../types";
 import { REFERENCE_IDS } from "../ui";
+import { initialReadingRef } from "../reader/section";
 
 // The open corpora, the reference corpus (the BHSA) and where to start reading:
 // shared by the interfaces that follow one passage across corpora.
@@ -71,10 +72,15 @@ export function useReference(
 }
 
 /** The first chapter of the first book, to start with. */
-export async function firstChapter(corpus: string): Promise<string | null> {
+export async function firstChapter(corpus: string, sectionLevelCount?: number): Promise<string | null> {
   const books = await api.sections(corpus);
   const first = books.children[0];
   if (!first) return null;
+  // Two-level corpora begin with the whole text. Do not fetch all its lines
+  // just to discard the first child as a starting point.
+  if (sectionLevelCount === 2) return first.ref;
   const chapters = await api.sections(corpus, first.ref);
-  return chapters.children[0]?.ref ?? first.ref;
+  return sectionLevelCount === undefined
+    ? (chapters.children[0]?.ref ?? first.ref)
+    : initialReadingRef(first.ref, chapters.children[0]?.ref ?? null, sectionLevelCount);
 }
