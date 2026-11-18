@@ -64,6 +64,7 @@ describe("Reader section selection", () => {
   it("never cites an unverified line injected through a URL", () => {
     expect(verifiedSectionRef(riaoLine, [{ heading: riaoLine }])).toBe(riaoLine);
     expect(verifiedSectionRef("riao/ria1:FORGED", [{ heading: riaoLine }])).toBeNull();
+    expect(verifiedSectionRef("Genesis 1:99999", [{ heading: "Genesis 1:3" }])).toBeNull();
     expect(verifiedSectionRef(riaoLine, undefined)).toBeNull();
   });
   it("opens a whole document for 2-level TF, not only its first line", () => {
