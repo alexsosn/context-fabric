@@ -299,8 +299,10 @@ export function ReaderApp() {
 
   // the selected verse's render tree, for its words
   const selectedPassage = usePassage(card, selectedChapter, own);
-  const tree = selectedPassage.data?.trees.find((t) => t.heading === selected);
-  const verifiedLineRef = verifiedSectionRef(state.selectedRef ?? null, selectedPassage.data?.trees);
+  // Never treat either ?v= or ?line= as attested until the requested
+  // passage actually contains the exact TF heading.
+  const verifiedSelectedRef = verifiedSectionRef(selected, selectedPassage.data?.trees);
+  const tree = selectedPassage.data?.trees.find((t) => t.heading === verifiedSelectedRef);
 
   // the chapter's neighbours
   const current = usePassage(card, state.ref, own);
@@ -379,7 +381,7 @@ export function ReaderApp() {
           <Cite
             align="start"
             text={(software, date) =>
-              citePassage(card, verifiedLineRef ?? (state.verse !== null ? `${state.ref}:${state.verse}` : state.ref!), software, date)
+              citePassage(card, verifiedSelectedRef ?? state.ref!, software, date)
             }
           />
         ) : null}
@@ -512,8 +514,8 @@ export function ReaderApp() {
             cards={cards}
             names={names}
             others={others}
-            verseRef={selected}
-            verse={selectedVerse}
+            verseRef={verifiedSelectedRef}
+            verse={verifiedSelectedRef ? selectedVerse : null}
             tree={tree}
             chapter={parallel.data}
             diffs={diffs}
