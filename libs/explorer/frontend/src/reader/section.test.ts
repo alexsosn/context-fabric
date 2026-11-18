@@ -58,7 +58,7 @@ describe("Reader section selection", () => {
     const state = parseReader({ pathname: "/read/bhsa/Genesis/1", search: "?v=3" });
     expect(state.ref).toBe("Genesis 1");
     expect(state.verse).toBe(3);
-    expect(state.selectedRef).toBeNull();
+    expect(state.selectedRef).toBeUndefined();
     expect(serializeReader(state)).toBe("/read/bhsa/Genesis/1?v=3");
   });
   it("never cites an unverified line injected through a URL", () => {

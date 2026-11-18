@@ -42,7 +42,9 @@ export function parseReader(location: { pathname: string; search: string }): Rea
     corpus: corpus ?? null,
     ref,
     verse: Number.isInteger(verse) ? verse : null,
-    selectedRef: p.get("line"),
+    // Keep the pre-existing Reader object contract for old Bible URLs:
+    // absence of ?line= means the property does not exist at all.
+    ...(p.get("line") ? { selectedRef: p.get("line") } : {}),
     panel: PANELS.includes(panel as Panel) ? (panel as Panel) : null,
     mode: p.get("mode") === "running" ? "running" : "verses",
     texts: texts === null ? null : texts.split(",").filter(Boolean),
