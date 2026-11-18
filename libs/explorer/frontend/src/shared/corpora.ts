@@ -76,6 +76,9 @@ export async function firstChapter(corpus: string, sectionLevelCount?: number): 
   const books = await api.sections(corpus);
   const first = books.children[0];
   if (!first) return null;
+  // Two-level corpora begin with the whole text. Do not fetch all its lines
+  // just to discard the first child as a starting point.
+  if (sectionLevelCount === 2) return first.ref;
   const chapters = await api.sections(corpus, first.ref);
   return sectionLevelCount === undefined
     ? (chapters.children[0]?.ref ?? first.ref)
