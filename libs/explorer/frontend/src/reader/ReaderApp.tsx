@@ -21,6 +21,7 @@ import { alignRef, navigate } from "../ui";
 import { Workspaces } from "../Workspaces";
 import { ReaderPanel } from "./Panel";
 import { useReader } from "./state";
+import { sectionLabel, selectionForRef } from "./section";
 import { textOf } from "./tree";
 import { closesParagraph, type Mode } from "./url";
 
@@ -42,20 +43,15 @@ function usePassage(card: CorpusCard | undefined, ref: string | null, settings: 
   });
 }
 
-/** The number of a verse from its heading (`Genesis 1:3` → 3). */
-function verseNumber(tree: RenderTree): number | null {
-  return splitRef(tree.heading).verse;
-}
-
-interface ChapterProps {
+ interface ChapterProps {
   card: CorpusCard;
   chapter: string;
   settings: ViewSettings;
   mode: Mode;
   selected: string | null;
   marks: Map<number, DiffKind> | undefined;
-  onSelect: (ref: string) => void;
-  onWord: (ref: string, node: number) => void;
+  onSelect: (ref: string, chapter: string) => void;
+  onWord: (ref: string, node: number, chapter: string) => void;
   onHover: (node: number | null, target?: Element) => void;
   onNext: (chapter: string, next: string | null) => void;
 }
@@ -74,15 +70,15 @@ function Chapter({ card, chapter, settings, mode, selected, marks, onSelect, onW
     const isSelected = tree.heading === selected;
     const props = {
       "data-verse": tree.heading,
-      onClick: () => onSelect(tree.heading),
+      onClick: () => onSelect(tree.heading, chapter),
       className: `cursor-pointer rounded transition-colors ${isSelected ? "bg-gold-leaf/60" : "hover:bg-woad-soft/50"}`,
     };
-    const number = verseNumber(tree);
+    const number = sectionLabel(tree.heading, chapter);
     const content = (
       <DisplayProvider
         config={card.display}
         settings={settings}
-        onInspect={(node) => onWord(tree.heading, node)}
+        onInspect={(node) => onWord(tree.heading, node, chapter)}
         onHover={onHover}
         marks={marks}
       >
@@ -250,12 +246,15 @@ export function ReaderApp() {
   }, [chain, state.ref, actions]);
 
   // the selected verse: from the URL (a verse of its chapter), or clicked anywhere in the chain
-  const [selected, setSelected] = useState<string | null>(null);
-  // a verse that came with the URL (a link, the lexicon, another interface) is scrolled to once shown
-  const pending = useRef<string | null>(state.ref && state.verse !== null ? `${state.ref}:${state.verse}` : null);
+  const urlSelection = state.selectedRef ??
+    (state.ref && state.verse !== null ? `${state.ref}:${state.verse}` : null);
+  const [selected, setSelected] = useState<string | null>(urlSelection);
+  // A selected ORACC line is an exact source ref, not a fabricated numeric verse.
+  const pending = useRef<string | null>(urlSelection);
   useEffect(() => {
-    if (state.ref && state.verse !== null) setSelected(`${state.ref}:${state.verse}`);
-  }, [state.ref, state.verse]);
+    setSelected(urlSelection);
+    if (urlSelection) pending.current = urlSelection;
+  }, [urlSelection]);
   useEffect(() => {
     if (!pending.current) return;
     const el = scrollerRef.current?.querySelector(`[data-verse="${CSS.escape(pending.current)}"]`);
@@ -264,15 +263,16 @@ export function ReaderApp() {
       pending.current = null;
     }
   });
-  const selectedChapter = selected ? splitRef(selected).chapter : state.ref;
-  const selectedVerse = selected ? splitRef(selected).verse : null;
-  const select = (ref: string) => {
+  const selectedChapter = state.selectedRef ? state.ref : (selected ? splitRef(selected).chapter : state.ref);
+  const selectedVerse = state.verse;
+  const select = (ref: string, parent: string) => {
     setSelected(ref);
-    const { chapter, verse } = splitRef(ref);
-    // the URL names the chapter of the selected verse
+    // The Chapter already knows the exact parent, so no corpus-specific
+    // separator guessing is needed for two- and three-level section paths.
+    const { chapter, verse, selectedRef } = selectionForRef(ref, parent);
     scrolledTo.current = chapter;
     if (chapter !== state.ref) keepChain.current = chapter;
-    actions.select(verse, chapter);
+    actions.select(verse, chapter, selectedRef);
   };
 
   // parallels and differences for the selected verse's chapter
@@ -378,7 +378,7 @@ export function ReaderApp() {
           <Cite
             align="start"
             text={(software, date) =>
-              citePassage(card, state.verse ? `${state.ref}:${state.verse}` : state.ref!, software, date)
+              citePassage(card, state.selectedRef ?? (state.verse !== null ? `${state.ref}:${state.verse}` : state.ref!), software, date)
             }
           />
         ) : null}
@@ -470,8 +470,8 @@ export function ReaderApp() {
                   selected={selected}
                   marks={state.diff ? diffs[card.name]?.marks : undefined}
                   onSelect={select}
-                  onWord={(ref, node) => {
-                    select(ref);
+                  onWord={(ref, node, parent) => {
+                    select(ref, parent);
                     setWord({ corpus: card.name, node });
                     actions.setPanel("words");
                   }}

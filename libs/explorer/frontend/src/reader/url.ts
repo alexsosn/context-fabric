@@ -13,6 +13,8 @@ export interface Reader {
   /** The chapter (`Genesis 1`), as that corpus names it. */
   ref: string | null;
   verse: number | null;
+  /** Opaque selected line for corpora without numeric Bible-style verses. */
+  selectedRef?: string | null;
   /** The tab of the resource panel, or null when it is closed. */
   panel: Panel | null;
   mode: Mode;
@@ -40,6 +42,7 @@ export function parseReader(location: { pathname: string; search: string }): Rea
     corpus: corpus ?? null,
     ref,
     verse: Number.isInteger(verse) ? verse : null,
+    selectedRef: p.get("line"),
     panel: PANELS.includes(panel as Panel) ? (panel as Panel) : null,
     mode: p.get("mode") === "running" ? "running" : "verses",
     texts: texts === null ? null : texts.split(",").filter(Boolean),
@@ -55,6 +58,7 @@ export function serializeReader(state: Reader): string {
   }
   const p = new URLSearchParams();
   if (state.verse !== null) p.set("v", String(state.verse));
+  if (state.selectedRef) p.set("line", state.selectedRef);
   if (state.panel) p.set("panel", state.panel);
   if (state.mode === "running") p.set("mode", "running");
   if (state.texts !== null) p.set("texts", state.texts.join(","));
