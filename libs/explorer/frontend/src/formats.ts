@@ -4,7 +4,7 @@ export function formatNote(languageCode: string | null = null): string {
   if (languageCode === "hbo" || languageCode === "heb")
     return "Vocalized: with vowels and accents, and the qere where it differs from the ketiv. Unvocalized: the consonants of the ketiv.";
   if (languageCode === "akk" || languageCode === "sux")
-    return "Cuneiform shows source-provided signs. Transliteration follows the source reading; missing signs are not reconstructed.";
+    return "Cuneiform shows source-provided signs. Source transliteration follows the source reading; missing signs are not reconstructed.";
   return "Available scripts and transliterations are provided by this corpus.";
 }
 
