@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectionForRef, sectionLabel } from "./section";
+import { selectionForRef, sectionLabel, verifiedSectionRef } from "./section";
 import { parseReader, serializeReader, type Reader } from "./url";
 
 const riaoFace = "riao/ria1:Q001801 Q001801.face.1";
@@ -60,5 +60,10 @@ describe("Reader section selection", () => {
     expect(state.verse).toBe(3);
     expect(state.selectedRef).toBeNull();
     expect(serializeReader(state)).toBe("/read/bhsa/Genesis/1?v=3");
+  });
+  it("never cites an unverified line injected through a URL", () => {
+    expect(verifiedSectionRef(riaoLine, [{ heading: riaoLine }])).toBe(riaoLine);
+    expect(verifiedSectionRef("riao/ria1:FORGED", [{ heading: riaoLine }])).toBeNull();
+    expect(verifiedSectionRef(riaoLine, undefined)).toBeNull();
   });
 });
