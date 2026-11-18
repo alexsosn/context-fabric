@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectionForRef, sectionLabel, verifiedSectionRef } from "./section";
+import { selectionForRef, sectionLabel, verifiedSectionRef, initialReadingRef, panelAfterSelection } from "./section";
 import { parseReader, serializeReader, type Reader } from "./url";
 
 const riaoFace = "riao/ria1:Q001801 Q001801.face.1";
@@ -66,4 +66,18 @@ describe("Reader section selection", () => {
     expect(verifiedSectionRef("riao/ria1:FORGED", [{ heading: riaoLine }])).toBeNull();
     expect(verifiedSectionRef(riaoLine, undefined)).toBeNull();
   });
+  it("opens a whole document for 2-level TF, not only its first line", () => {
+    expect(initialReadingRef("Q000935", "Q000935 1", 2)).toBe("Q000935");
+    expect(initialReadingRef("Genesis", "Genesis 1", 3)).toBe("Genesis 1");
+    expect(initialReadingRef("riao/ria1:Q001801", riaoFace, 3)).toBe(riaoFace);
+    expect(initialReadingRef("OneDocument", null, 1)).toBe("OneDocument");
+  });
+
+  it("opens source-word inspection by default for unnumbered ORACC lines", () => {
+    expect(panelAfterSelection(null, null, riaoLine)).toBe("words");
+    expect(panelAfterSelection(null, 3, null)).toBe("parallels");
+    expect(panelAfterSelection("notes", null, riaoLine)).toBe("notes");
+    expect(panelAfterSelection(null, null, null)).toBeNull();
+  });
+
 });
