@@ -622,6 +622,7 @@ export function InterlinearApp() {
             settings={settings}
             formats={card?.display.textFormats ?? []}
             defaultFormat={card?.display.defaultFormat ?? null}
+            languageCode={card?.display.languageCode ?? null}
             onChange={setSettings}
           />
           <Workspaces corpora={names} current="interlinear" onLoad={navigate} />
