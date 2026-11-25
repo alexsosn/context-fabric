@@ -245,7 +245,12 @@ export function ReaderPanel(props: PanelProps) {
   const words = tree ? wordsOf(tree, wordType(card)) : [];
 
   const parallels = () => {
-    if (!props.chapter || verse === null) return <p className="text-[13px] text-stone">…</p>;
+    if (verse === null) return (
+      <p className="text-[13px] text-stone">
+        Parallel verse comparison requires numbered aligned verses. Choose Words to inspect this line.
+      </p>
+    );
+    if (!props.chapter) return <p className="text-[13px] text-stone">…</p>;
     const row = props.chapter.rows.find((r) => r.verse === verse);
     const columns = props.chapter.columns.filter((c) => c.name !== card.name && cards[c.name]);
     if (!columns.length) {
